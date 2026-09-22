@@ -1,0 +1,11 @@
+From: Mercado Pago <info@mercadopago.cl>
+Subject: Pagaste $ 8.490 a Starbucks Costanera
+Date: 2026-09-21T12:12:30.000Z
+
+¡Listo! Pagaste $ 8.490 a Starbucks Costanera.
+
+Medio de pago: Dinero disponible
+Fecha: 21 de septiembre de 2026 a las 09:12 hs
+Número de operación: 123456789
+
+¿Necesitas ayuda? Ingresa a Ayuda en la app de Mercado Pago.

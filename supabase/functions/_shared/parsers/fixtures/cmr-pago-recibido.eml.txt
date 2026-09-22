@@ -1,0 +1,7 @@
+From: Banco Falabella <notificaciones@bancofalabella.cl>
+Subject: Hemos recibido el pago de tu Tarjeta CMR
+Date: 2026-09-05T14:00:00.000Z
+
+Hola,
+
+Recibimos tu pago por $250.000 el 05/09/2026. Tu nuevo cupo disponible es $1.250.000.

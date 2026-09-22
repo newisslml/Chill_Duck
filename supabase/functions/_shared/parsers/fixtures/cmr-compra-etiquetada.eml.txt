@@ -1,0 +1,16 @@
+From: Banco Falabella <notificaciones@bancofalabella.cl>
+Subject: Notificación de compra con tu Tarjeta CMR
+Date: 2026-09-21T16:47:00.000Z
+
+Hola,
+
+Te informamos que se realizó una compra con tu Tarjeta CMR Mastercard terminada en 1234.
+
+Comercio: LIDER EXPRESS PROVIDENCIA
+Monto: $12.990
+Cuotas: 1
+Fecha: 21/09/2026
+Hora: 13:45
+
+Si no reconoces esta compra, llámanos al 600 390 6000.
+Revisa tu estado de cuenta y nuestras promociones en www.bancofalabella.cl

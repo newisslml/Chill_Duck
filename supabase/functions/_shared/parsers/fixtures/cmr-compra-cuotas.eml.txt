@@ -1,0 +1,9 @@
+From: CMR Falabella <avisos@cmr.falabella.cl>
+Subject: Compra realizada con tu Tarjeta CMR
+Date: 2026-09-21T00:12:00.000Z
+
+Estimado cliente:
+
+Se realizó una compra por $359.970 en FALABELLA.COM el 20/09/2026 a las 21:10 hrs. en 6 cuotas con tu Tarjeta CMR terminada en 1234.
+
+Si no reconoces esta transacción, bloquea tu tarjeta desde la App Banco Falabella.

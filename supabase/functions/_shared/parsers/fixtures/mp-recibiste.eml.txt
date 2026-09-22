@@ -1,0 +1,5 @@
+From: Mercado Pago <info@mercadopago.cl>
+Subject: Recibiste $ 20.000
+Date: 2026-09-18T19:00:00.000Z
+
+Juan Pérez te transfirió $ 20.000. Ya está disponible en tu cuenta.

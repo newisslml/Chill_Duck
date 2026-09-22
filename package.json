@@ -1,0 +1,22 @@
+{
+  "name": "chill-duck",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "app"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w app",
+    "demo": "npm run demo -w app",
+    "build": "npm run build -w app",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "http_ece": "^1.2.1",
+    "sharp": "^0.35.4",
+    "vitest": "^5.0.1"
+  }
+}

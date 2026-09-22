@@ -1,0 +1,11 @@
+node_modules
+app/node_modules
+app/dist
+app/dev-dist
+app/.env
+app/.env.local
+supabase/.temp
+supabase/.branches
+apps-script
+.env
+.env.local

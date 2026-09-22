@@ -1,0 +1,13 @@
+# Configuración mínima para la CLI de Supabase (`npx supabase ...`).
+project_id = "chill-duck"
+
+# Las funciones se autentican con el token de Ajustes (x-ingest-token), no con el JWT de Supabase,
+# porque las llaman Apps Script y el Atajo de iOS.
+[functions.ingest]
+verify_jwt = false
+
+[functions.monthly-report]
+verify_jwt = false
+
+[functions.sync-mercadopago]
+verify_jwt = false

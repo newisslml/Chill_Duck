@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#4a3aa7"/>
+  <g id="duck">
+    <!-- agua -->
+    <path d="M40 392 Q88 372 136 392 T232 392 T328 392 T424 392 T520 392" fill="none" stroke="#7d70d6" stroke-width="14" stroke-linecap="round"/>
+    <!-- cuerpo -->
+    <path d="M96 268 C120 292 150 298 186 292 C230 284 290 282 330 300 C380 322 404 350 396 372 C386 398 340 408 260 408 C170 408 118 392 100 356 C88 330 86 296 96 268 Z" fill="#f5c518"/>
+    <!-- ala -->
+    <path d="M168 330 C196 306 250 306 282 326 C262 354 206 362 168 330 Z" fill="#e0a800"/>
+    <!-- cabeza -->
+    <circle cx="316" cy="214" r="86" fill="#f5c518"/>
+    <!-- pico -->
+    <path d="M382 226 C416 214 452 220 460 234 C452 252 414 258 380 250 Z" fill="#f28c28"/>
+    <!-- lentes de sol -->
+    <path d="M246 196 H402" stroke="#111" stroke-width="10" stroke-linecap="round"/>
+    <path d="M262 192 H320 V210 C320 230 306 238 290 238 C274 238 262 230 262 210 Z" fill="#111"/>
+    <path d="M334 192 H392 V210 C392 230 378 238 362 238 C346 238 334 230 334 210 Z" fill="#111"/>
+    <path d="M272 200 L288 200" stroke="#ffffff" stroke-opacity="0.5" stroke-width="5" stroke-linecap="round"/>
+    <path d="M344 200 L360 200" stroke="#ffffff" stroke-opacity="0.5" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+/* Tokens de color. Paleta validada para daltonismo (skill dataviz):
+   total = violeta, CMR = aqua, Mercado Pago = azul; estados con ícono + texto. */
+@theme {
+  --color-page: #f9f9f7;
+  --color-surface: #fcfcfb;
+  --color-raised: #ffffff;
+  --color-ink: #0b0b0b;
+  --color-ink-2: #52514e;
+  --color-muted: #6f6d68;
+  --color-grid: #e1e0d9;
+  --color-hairline: rgb(11 11 11 / 0.1);
+
+  --color-accent: #4a3aa7;
+  --color-on-accent: #ffffff;
+  --color-cmr: #1baf7a;
+  --color-mp: #2a78d6;
+  /* Amarillo del pato del ícono (#f5c518), para los patos decorativos de la vista Inicio. */
+  --color-duck: #f5c518;
+
+  --color-good: #006300;
+  --color-warning: #fab219;
+  --color-warning-ink: #8a5a00;
+  --color-critical: #d03b3b;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/*
+ * Modo oscuro: sigue al sistema por defecto, pero un data-theme explícito (elegido en
+ * Ajustes → Apariencia, ver lib/theme.ts) gana en cualquier sentido. El bloque de valores
+ * se repite a propósito: uno reacciona a prefers-color-scheme, el otro al atributo.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-page: #0d0d0d;
+    --color-surface: #1a1a19;
+    --color-raised: #232322;
+    --color-ink: #ffffff;
+    --color-ink-2: #c3c2b7;
+    --color-muted: #9a988f;
+    --color-grid: #2c2c2a;
+    --color-hairline: rgb(255 255 255 / 0.1);
+
+    --color-accent: #9085e9;
+    --color-on-accent: #0d0d0d;
+    --color-cmr: #199e70;
+    --color-mp: #3987e5;
+
+    --color-good: #0ca30c;
+    --color-warning-ink: #fab219;
+    --color-critical: #e66767;
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-page: #0d0d0d;
+  --color-surface: #1a1a19;
+  --color-raised: #232322;
+  --color-ink: #ffffff;
+  --color-ink-2: #c3c2b7;
+  --color-muted: #9a988f;
+  --color-grid: #2c2c2a;
+  --color-hairline: rgb(255 255 255 / 0.1);
+
+  --color-accent: #9085e9;
+  --color-on-accent: #0d0d0d;
+  --color-cmr: #199e70;
+  --color-mp: #3987e5;
+
+  --color-good: #0ca30c;
+  --color-warning-ink: #fab219;
+  --color-critical: #e66767;
+}
+
+html {
+  background: var(--color-page);
+  color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+}
+
+/* iOS hace zoom en inputs con letra < 16px. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
