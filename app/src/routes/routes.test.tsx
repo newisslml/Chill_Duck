@@ -57,6 +57,10 @@ const demo = {
     row({ merchant: 'FALABELLA.COM', total: 359_970, charged: 59_995, installments: 6, installment_no: 3, charge_month: '2026-11-01' }),
     row({ merchant: 'SHEIN', method: 'mercadopago', total: 45_980, charged: 15_326, installments: 3, installment_no: 3, charge_month: '2026-10-01' }),
   ],
+  notifications: [
+    { id: 2, title: '💳 CMR · $12.990 en Ferretería Don Pepe', body: 'Llevas $539.242 de $900.000 este mes (60%)', url: '/movimientos', created_at: '2026-09-21T12:10:00Z', read_at: null },
+    { id: 1, title: '🦆 Tu informe de agosto está listo', body: 'Gastaste $610.000 y ahorraste $690.000', url: null, created_at: '2026-09-01T11:00:00Z', read_at: '2026-09-01T12:00:00Z' },
+  ],
 };
 
 vi.mock('../lib/supabase', () => ({
@@ -82,6 +86,10 @@ vi.mock('../lib/queries', () => {
     useAddMerchantRule: mutation,
     useDismissIngestError: mutation,
     useRealtimeSync: () => undefined,
+    useNotifications: () => query(demo.notifications),
+    useUnreadNotifications: () => demo.notifications.filter((n) => !n.read_at).length,
+    useMarkNotificationsRead: mutation,
+    useClearNotifications: mutation,
   };
 });
 
@@ -91,11 +99,13 @@ async function render(path: string) {
   const { MetodosPago } = await import('./MetodosPago');
   const { Movimientos } = await import('./Movimientos');
   const { Ajustes } = await import('./Ajustes');
+  const { Notificaciones } = await import('./Notificaciones');
   const page = {
     '/': <Inicio />,
     '/metodos': <MetodosPago />,
     '/movimientos': <Movimientos userId="u1" />,
     '/ajustes': <Ajustes email="yo@example.org" />,
+    '/notificaciones': <Notificaciones />,
   }[path];
   return renderToString(
     <MemoryRouter initialEntries={[path]}>
@@ -116,6 +126,15 @@ describe('vistas', () => {
     expect(html).toContain('Supermercado');
     expect(html).toContain('$760.758'); // ahorro a la fecha
     expect(html).toContain('Hi, <!-- -->Newiss');
+    expect(html).toContain('Notificaciones, 1 sin leer');
+  });
+
+  it('Notificaciones muestra el historial por día y destaca las no leídas', async () => {
+    const html = await render('/notificaciones');
+    expect(html).toContain('Lunes 21 de septiembre');
+    expect(html).toContain('💳 CMR · $12.990 en Ferretería Don Pepe');
+    expect(html).toContain('Tu informe de agosto está listo');
+    expect(html.match(/\(nueva\)/g)).toHaveLength(1);
   });
 
   it('Métodos separa CMR y Mercado Pago con sus topes y cuotas', async () => {

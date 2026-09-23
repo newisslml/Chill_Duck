@@ -138,6 +138,30 @@ describe('migración', () => {
     expect(rows.map((r) => r.external_ref)).toEqual(['mp:123']);
   });
 
+  it('el historial de notificaciones es privado y la app solo puede marcarlas como leídas', async () => {
+    await db.exec(`set role service_role;`);
+    await db.query(
+      `insert into notifications (user_id, title, body) values ('${USER_A}', '💳 CMR · $1.990 en OXXO', 'Llevas $1.990')`,
+    );
+    await db.exec(`reset role;`);
+
+    const { rows: others } = await asUser(USER_B, () => db.query(`select * from notifications`));
+    expect(others).toHaveLength(0);
+
+    await asUser(USER_A, () => db.query(`update notifications set read_at = now()`));
+    const { rows } = await asUser(USER_A, () =>
+      db.query<{ read: boolean }>(`select read_at is not null as read from notifications`),
+    );
+    expect(rows).toEqual([{ read: true }]);
+
+    await expect(asUser(USER_A, () => db.query(`update notifications set title = 'otro'`))).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(
+      asUser(USER_A, () => db.query(`insert into notifications (user_id, title) values ('${USER_A}', 'falsa')`)),
+    ).rejects.toThrow(/permission denied/);
+  });
+
   it('no registra dos veces el mismo correo', async () => {
     const insert = () =>
       db.query(

@@ -11,6 +11,7 @@ import { Inicio } from './routes/Inicio';
 import { Login } from './routes/Login';
 import { MetodosPago } from './routes/MetodosPago';
 import { Movimientos } from './routes/Movimientos';
+import { Notificaciones } from './routes/Notificaciones';
 import { Onboarding } from './routes/Onboarding';
 
 function Shell({ session }: { session: Session }) {
@@ -30,6 +31,7 @@ function Shell({ session }: { session: Session }) {
           <Route path="/metodos" element={<MetodosPago />} />
           <Route path="/movimientos" element={<Movimientos userId={session.user.id} />} />
           <Route path="/ajustes" element={<Ajustes email={session.user.email ?? ''} />} />
+          <Route path="/notificaciones" element={<Notificaciones />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

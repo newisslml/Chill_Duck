@@ -35,6 +35,15 @@ export interface TransactionInput {
   note: string | null;
 }
 
+export interface AppNotification {
+  id: number;
+  title: string;
+  body: string;
+  url: string | null;
+  created_at: string;
+  read_at: string | null;
+}
+
 export interface IngestError {
   id: number;
   source: string;
@@ -142,11 +151,54 @@ export function useSaveTransaction() {
   return useMutation({
     mutationFn: async ({ id, ...fields }: TransactionInput) => {
       const row = { ...fields, needs_review: false };
-      return id
-        ? unwrap(supabase.from('transactions').update(row).eq('id', id))
-        : unwrap(supabase.from('transactions').insert({ ...row, source: 'manual' }));
+      if (id) return unwrap(supabase.from('transactions').update(row).eq('id', id));
+      const created = await unwrap<{ id: string }>(
+        supabase.from('transactions').insert({ ...row, source: 'manual' }).select('id').single(),
+      );
+      // El gasto ya quedó guardado: si el aviso falla, no se muestra como error del formulario.
+      void supabase.functions
+        .invoke('notify-purchase', { body: { id: created.id } })
+        .then(({ error }) => error && console.error('No se pudo enviar el aviso del gasto:', error));
+      return created;
     },
     onSuccess: () => invalidateMovements(qc),
+  });
+}
+
+export function useNotifications() {
+  return useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () =>
+      (await unwrap(
+        supabase
+          .from('notifications')
+          .select('id, title, body, url, created_at, read_at')
+          .order('created_at', { ascending: false })
+          .limit(200),
+      )) as AppNotification[],
+  });
+}
+
+export function useUnreadNotifications(): number {
+  const notifications = useNotifications();
+  return (notifications.data ?? []).filter((n) => !n.read_at).length;
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      unwrap(supabase.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+export function useClearNotifications() {
+  const qc = useQueryClient();
+  return useMutation({
+    // RLS limita el borrado a tus notificaciones; el filtro solo evita un DELETE sin WHERE.
+    mutationFn: async () => unwrap(supabase.from('notifications').delete().gt('id', 0)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
 
@@ -202,6 +254,11 @@ export function useRealtimeSync(userId: string) {
           const source = (payload.new as { source?: string } | null)?.source;
           if (payload.eventType === 'INSERT' && source && SHORTCUT_SOURCES.has(source)) playCashSound();
         },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        () => void qc.invalidateQueries({ queryKey: ['notifications'] }),
       )
       .subscribe();
     return () => void supabase.removeChannel(channel);

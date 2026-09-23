@@ -21,6 +21,16 @@ function vapidFromEnv(): VapidKeys | null {
 }
 
 export async function notifyUser(db: SupabaseClient, userId: string, message: PushMessage): Promise<void> {
+  // Queda en el historial aunque el push no se pueda entregar (sin claves o sin dispositivos).
+  const { error: logError } = await db.from('notifications').insert({
+    user_id: userId,
+    title: message.title,
+    body: message.body,
+    url: message.url ?? null,
+    tag: message.tag ?? null,
+  });
+  if (logError) console.error('No se pudo guardar la notificación en el historial:', logError);
+
   const vapid = vapidFromEnv();
   if (!vapid) {
     console.warn('Push desactivado: faltan VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY o VAPID_SUBJECT');

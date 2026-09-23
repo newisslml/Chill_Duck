@@ -11,3 +11,7 @@ verify_jwt = false
 
 [functions.sync-mercadopago]
 verify_jwt = false
+
+# La llama la app con la sesión del usuario; valida el JWT ella misma para responder el preflight CORS.
+[functions.notify-purchase]
+verify_jwt = false

@@ -8,6 +8,7 @@ import { CategoryList } from '../components/CategoryList';
 import { DuckIcon } from '../components/DuckIcon';
 import { MonthPicker } from '../components/MonthPicker';
 import { MonthReportSheet } from '../components/MonthReportSheet';
+import { NotificationBell } from '../components/NotificationBell';
 import { RingMeter } from '../components/RingMeter';
 import { Button, Card, ErrorNote, PageHeader, SectionTitle, Spinner, StatusChip, statusFill } from '../components/ui';
 import { useMonth } from '../lib/month';
@@ -92,7 +93,10 @@ export function Inicio() {
   return (
     <>
       <PageHeader title="Inicio" icon={<img src="/icons/icon-192.png" alt="" className="size-9 rounded-xl" />}>
-        {settings?.alias && <p className="text-xl font-bold text-accent">Hi, {settings.alias}</p>}
+        <div className="flex items-center gap-3">
+          {settings?.alias && <p className="text-xl font-bold text-accent">Hi, {settings.alias}</p>}
+          <NotificationBell />
+        </div>
       </PageHeader>
 
       <div className="space-y-4">

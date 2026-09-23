@@ -106,11 +106,17 @@ export async function recordPayment(
   return { status: 'created', id: tx.id, category: categoryId };
 }
 
-async function notifyPurchase(
-  db: SupabaseClient,
-  settings: SettingsRow,
-  tx: { id: string; method: Method; merchant: string; amount: number; installments: number; purchased_at: string },
-) {
+export interface NotifiableTx {
+  id: string;
+  method: Method;
+  merchant: string;
+  amount: number;
+  installments: number;
+  purchased_at: string;
+}
+
+/** Push "💳 CMR · $X en Y" con el total del mes y los topes que se cruzaron. */
+export async function notifyPurchase(db: SupabaseClient, settings: SettingsRow, tx: NotifiableTx) {
   const month = monthKey(new Date(tx.purchased_at));
   const report = buildReport({ month, charges: await monthCharges(db, settings.user_id, month), budget: settings });
   const thisCharge = Math.floor(tx.amount / tx.installments);

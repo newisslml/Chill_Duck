@@ -23,9 +23,9 @@ Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo 
 
 | Carpeta | Qué hay |
 |---|---|
-| `app/` | PWA: React + Vite + Tailwind. Vistas: Inicio, Métodos de pago, Movimientos y Ajustes |
+| `app/` | PWA: React + Vite + Tailwind. Vistas: Inicio, Métodos de pago, Movimientos, Ajustes y Notificaciones |
 | `supabase/migrations/` | Tablas, seguridad por fila, vista `month_charges` (reparto de cuotas por mes) y reglas de categorías |
-| `supabase/functions/` | `ingest` (correo y Atajos), `sync-mercadopago` (API), `monthly-report` (informe) y `_shared/` (lógica compartida con la app) |
+| `supabase/functions/` | `ingest` (correo y Atajos), `sync-mercadopago` (API), `monthly-report` (informe), `notify-purchase` (aviso de gastos ingresados en la app) y `_shared/` (lógica compartida con la app) |
 | `supabase/cron/` | SQL que programa la sincronización de Mercado Pago con pg_cron |
 | `apps-script/` | Script de Gmail: envía el informe mensual. Ni CMR Falabella ni Mercado Pago envían avisos de compra por correo (confirmado en la práctica); el lector de correos queda disponible por si tu banco sí lo hace |
 | `shortcuts/` | Paso a paso de los Atajos de iOS (Apple Pay y respaldo manual) |
@@ -70,9 +70,14 @@ npx supabase secrets set VAPID_PUBLIC_KEY=<public> VAPID_PRIVATE_KEY=<private> V
 ```bash
 npx supabase functions deploy ingest --no-verify-jwt
 npx supabase functions deploy monthly-report --no-verify-jwt
+npx supabase functions deploy notify-purchase --no-verify-jwt
 ```
 
-Se autentican con el token de Ajustes (no con el login de Supabase) porque las llaman Apps Script y el Atajo.
+`ingest` y `monthly-report` se autentican con el token de Ajustes (no con el login de Supabase) porque
+las llaman Apps Script y el Atajo. `notify-purchase` la llama la app al guardar un gasto a mano y valida
+tu sesión por su cuenta.
+
+Cada notificación que se envía queda también en el historial de la app (campana de Inicio).
 
 ### 3b. Mercado Pago automático (API)
 

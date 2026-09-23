@@ -3,11 +3,15 @@
 
 import type { MerchantRule } from '@shared/categorize.ts';
 import { addMonths, monthStart, monthStartInstant } from '@shared/dates.ts';
+import { METHODS } from '@shared/domain.ts';
+import { formatCLP } from '@shared/money.ts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { IngestError, Settings, TransactionInput } from '../lib/queries';
+import type { AppNotification, IngestError, Settings, TransactionInput } from '../lib/queries';
 import { demoTransactions, expandCharges } from './data';
 
-export type { IngestError, Settings, TransactionInput } from '../lib/queries';
+export type { AppNotification, IngestError, Settings, TransactionInput } from '../lib/queries';
+
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 
 const store = {
   settings: {
@@ -49,6 +53,32 @@ const store = {
       created_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
     },
   ] as IngestError[],
+  notifications: [
+    {
+      id: 3,
+      title: '💳 CMR · $45.990 en LIDER EXPRESS',
+      body: 'Llevas $539.242 de $900.000 este mes (60%)',
+      url: '/movimientos',
+      created_at: hoursAgo(1),
+      read_at: null,
+    },
+    {
+      id: 2,
+      title: '⚠️ No pude registrar un pago',
+      body: 'Compra con tu Tarjeta CMR — revísalo en Ajustes',
+      url: '/ajustes',
+      created_at: hoursAgo(3),
+      read_at: null,
+    },
+    {
+      id: 1,
+      title: '💳 Mercado Pago · $8.490 en Starbucks Costanera',
+      body: 'Llevas $493.252 de $900.000 este mes (55%)',
+      url: '/movimientos',
+      created_at: hoursAgo(30),
+      read_at: hoursAgo(29),
+    },
+  ] as AppNotification[],
 };
 
 /** Pequeña espera para que se vea como una app real. */
@@ -113,14 +143,53 @@ function useInvalidateMovements() {
 
 export function useSaveTransaction() {
   const invalidate = useInvalidateMovements();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...fields }: TransactionInput) =>
       later(() => {
         const existing = store.transactions.find((t) => t.id === id);
-        if (existing) Object.assign(existing, fields, { needs_review: false });
-        else store.transactions.push({ ...fields, id: crypto.randomUUID(), needs_review: false, source: 'manual' });
+        if (existing) return void Object.assign(existing, fields, { needs_review: false });
+        store.transactions.push({ ...fields, id: crypto.randomUUID(), needs_review: false, source: 'manual' });
+        // Simula el aviso que en producción envía la función `notify-purchase`.
+        store.notifications.unshift({
+          id: Math.max(0, ...store.notifications.map((n) => n.id)) + 1,
+          title: `💳 ${METHODS[fields.method].short} · ${formatCLP(fields.amount)} en ${fields.merchant}`,
+          body: 'Gasto ingresado a mano',
+          url: '/movimientos',
+          created_at: new Date().toISOString(),
+          read_at: null,
+        });
       }),
-    onSuccess: invalidate,
+    onSuccess: () => Promise.all([invalidate(), qc.invalidateQueries({ queryKey: ['notifications'] })]),
+  });
+}
+
+export function useNotifications() {
+  return useQuery({ queryKey: ['notifications'], queryFn: () => later(() => store.notifications.map((n) => ({ ...n }))) });
+}
+
+export function useUnreadNotifications(): number {
+  const notifications = useNotifications();
+  return (notifications.data ?? []).filter((n) => !n.read_at).length;
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      later(() => {
+        const now = new Date().toISOString();
+        for (const n of store.notifications) n.read_at ??= now;
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+export function useClearNotifications() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => later(() => void (store.notifications = [])),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
 

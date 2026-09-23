@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import {
   Button,
   Card,
@@ -171,6 +172,9 @@ function NotificationsCard({ userId }: { userId: string }) {
         </Button>
       )}
       {error && <p className="mt-2 text-sm text-critical">{error}</p>}
+      <Link to="/notificaciones" className="mt-3 block text-center text-sm font-medium text-accent">
+        Ver historial de notificaciones
+      </Link>
     </Card>
   );
 }
