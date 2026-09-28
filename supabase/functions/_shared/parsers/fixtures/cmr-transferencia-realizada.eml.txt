@@ -1,0 +1,26 @@
+From: Banco Falabella <notificaciones@cl.bancofalabella.com>
+Subject: Aviso de transferencia de fondos realizada
+Date: 2026-09-28T12:10:00.000Z
+
+ JUAN, tu transferencia est&aacute; lista
+ 
+DetalleNombre destinatarioMaría González R
+Rut111111111
+BancoBanco Santander
+ProductoCuenta Corriente
+Numero de cuenta0000000000
+AsuntoArriendo
+Monto transferencia$250.000
+
+Cuenta de origenCuenta 00000000000 
+
+Fecha28-09-2026
+Hora08:50 
+Numero de operacion000000000000
+
+ Consejos para evitar fraudes:
+ 
+	- 
+ Evita abrir y/o descargar archivos de remitentes desconocidos.
+ 
+ Nunca te enviaremos e-mail con link a nuestro sitio web. Descarga nuestra App Banco Falabella y activa/desactiva tus compras por Internet, retiros o compras en el extranjero.

@@ -13,9 +13,10 @@ Requiere **iOS 17 o superior** y que tu CMR esté en la app **Wallet**. Cada vez
 Apple Pay, el iPhone envía el monto y el comercio a Chill Duck, y en segundos te llega la
 notificación con el total del mes.
 
-> Las compras online con número de tarjeta, o las que no pagues con Apple Pay, igual se registran:
-> llegan por correo (Apps Script) con hasta 5 minutos de retraso. Si un pago llega por las dos vías,
-> la app lo cuenta una sola vez.
+> Si un pago no llegó (o pagaste escribiendo el número en una web): en la app de Banco Falabella
+> abre el movimiento → **Compartir → Gmail** y envíatelo con el asunto **`Pago CMR`**. Se registra en
+> unos 5 minutos, y si el Atajo ya lo había registrado no se duplica.
+> Si el Atajo recibe una tarjeta que no reconoce, lo verás en Ajustes → Avisos que no pude leer.
 
 ## Antes de empezar
 
@@ -28,7 +29,8 @@ En la app, entra a **Ajustes → Captura automática** y ten a mano:
 
 1. Abre **Atajos** → pestaña **Automatización** → **+** (Nueva automatización).
 2. Elige **Transacción**.
-3. En **Tarjeta**, marca tu **CMR**. Deja todas las categorías de comercio marcadas.
+3. En **Tarjeta**, marca tu **CMR**. En **Categoría**, marca **todas** (Alimentos y bebidas, Compras, etc.):
+   si no hay ninguna marcada, la automatización nunca se activa.
 4. Selecciona **Ejecutar inmediatamente** y desactiva *Notificar al ejecutar*. Toca **Siguiente**.
 5. Elige **Nuevo atajo en blanco** y agrega la acción **Obtener contenido de URL**.
 6. Configúrala así (toca la flecha **>** de la acción para ver todas las opciones):
@@ -85,7 +87,11 @@ Paga algo pequeño con Apple Pay. Deberías recibir una notificación como:
 Si no llega nada:
 
 - Revisa en **Ajustes → Notificaciones** que las notificaciones estén activas en la app.
-- Abre la automatización y ejecútala a mano: si responde `Token inválido`, vuelve a copiar el token.
-- Si responde `ignored` con *Tarjeta no reconocida*, el nombre de la tarjeta en Wallet no contiene
-  "CMR", "Falabella" ni "Mercado Pago". Agrega una acción **Texto** antes de la petición con el nombre
-  correcto (por ejemplo `CMR`) y úsala como valor de `card`.
+- Abre la automatización y ejecútala a mano (▶). Como no hay un pago real, debería llegarte
+  *"⚠️ No pude registrar un pago"* con *Monto inválido: ""*: eso confirma que la URL y el token
+  están bien. Si no llega nada, la automatización no llega a Chill Duck: revisa la URL, el
+  encabezado `x-ingest-token` y que `source` diga `apple_pay`.
+- Si la prueba funciona pero un pago real no llega, la automatización no se disparó: revisa que
+  esté en **Ejecutar inmediatamente**, con tu CMR y **todas las categorías** marcadas. Mientras tanto, compártete el pago con
+  asunto `Pago CMR` (ver arriba).
+- El nombre de la tarjeta en Wallet da lo mismo: todo lo que llega por este Atajo se registra como CMR.

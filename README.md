@@ -8,6 +8,7 @@ el día 1 te envía por correo el informe del mes anterior.
 API Mercado Pago ◄─(pg_cron cada 2 min)── Edge Function `sync-mercadopago` ─┐
 Atajo iOS "Transacción" Apple Pay (CMR) ─► Edge Function `ingest` ──────────┤
 Atajo iOS "Mercado Pago con tarjeta"    ─► Edge Function `ingest` ──────────┤
+Apps Script: transferencias y "Pago CMR" ─► Edge Function `ingest` ─────────┤
                                                                             ├─► Postgres ─► Realtime ─► PWA
                                deduplica, categoriza y avisa por Web Push ◄─┘
 Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo desde tu Gmail
@@ -19,7 +20,15 @@ Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo 
   tarjeta tampoco se puede agregar a Apple Wallet en Chile, así que esos pagos se registran con el
   Atajo 2 (pregunta el monto al cerrar la app).
 - **CMR Falabella:** Banco Falabella no envía correos por compra; se capta con el Atajo 1 (Apple Pay).
-- **Correos (opcional):** el lector de Gmail sigue disponible para bancos que sí envían avisos por correo.
+  Respaldo: en la app de Banco Falabella abre el movimiento → **Compartir → Gmail**, envíatelo a tu
+  propio correo con el asunto **`Pago CMR`**. El script lee la imagen con el OCR de Google Drive
+  (lugar, fecha y hora, cuotas y monto) y la registra. Si el pago ya había llegado por el Atajo, se
+  cuenta una sola vez, y compartir dos veces el mismo pago tampoco lo duplica.
+- **Transferencias desde Banco Falabella:** automático por correo. Cada transferencia que haces genera
+  el aviso *"Aviso de transferencia de fondos realizada"* (de `notificaciones@cl.bancofalabella.com`);
+  el script de Gmail lo lee y la registra en CMR Falabella como "Transferencia a <destinatario>", para
+  revisar (puede ser plata que te mueves a ti mismo: bórrala y no vuelve). Las transferencias
+  recibidas, los avances en efectivo y el pago de la tarjeta se ignoran.
 
 | Carpeta | Qué hay |
 |---|---|
@@ -27,7 +36,7 @@ Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo 
 | `supabase/migrations/` | Tablas, seguridad por fila, vista `month_charges` (reparto de cuotas por mes) y reglas de categorías |
 | `supabase/functions/` | `ingest` (correo y Atajos), `sync-mercadopago` (API), `monthly-report` (informe), `notify-purchase` (aviso de gastos ingresados en la app) y `_shared/` (lógica compartida con la app) |
 | `supabase/cron/` | SQL que programa la sincronización de Mercado Pago con pg_cron |
-| `apps-script/` | Script de Gmail: envía el informe mensual. Ni CMR Falabella ni Mercado Pago envían avisos de compra por correo (confirmado en la práctica); el lector de correos queda disponible por si tu banco sí lo hace |
+| `apps-script/` | Script de Gmail: lee las transferencias de Banco Falabella y los "Pago CMR" que te compartes, y envía el informe mensual |
 | `shortcuts/` | Paso a paso de los Atajos de iOS (Apple Pay y respaldo manual) |
 | `tests/` | Prueba de la migración SQL en un Postgres embebido |
 
@@ -118,8 +127,10 @@ Para cortar el acceso, elimina la aplicación en el panel de Mercado Pago.
 ### 6. Lectura de correos y el informe mensual (Apps Script)
 
 Ni CMR Falabella ni Mercado Pago envían un correo por cada compra (solo notificaciones de sus apps,
-que ninguna API externa puede leer), así que en la práctica este script solo manda el informe
-mensual. Actívalo igual: es la única vía para el correo de fin de mes.
+que ninguna API externa puede leer). Banco Falabella sí avisa por correo cada transferencia que haces,
+y los pagos CMR puedes compartírtelos desde su app con asunto `Pago CMR`: este script registra ambos
+y además manda el informe mensual. Usa el servicio avanzado de Drive para leer la imagen (la primera
+ejecución pide permiso de Drive y Documentos; el documento temporal queda en la papelera).
 
 1. Entra a [script.google.com](https://script.google.com) con tu cuenta de Gmail → **Nuevo proyecto**.
 2. Pega el contenido de `apps-script/Code.gs`.
@@ -129,10 +140,10 @@ mensual. Actívalo igual: es la única vía para el correo de fin de mes.
 4. Ejecuta la función **`setup`** y autoriza los permisos. Crea el disparador del informe mensual y
    el heartbeat, y ejecuta `diagnostico` para revisar (en Ajustes → Captura automática de la app) si
    a tu Gmail llegan avisos de compra reales.
-5. Solo si `diagnostico` muestra avisos de compra genuinos (no marketing ni encuestas), ejecuta
-   `activarLecturaCorreos()` para prender la lectura cada 5 minutos. Si los avisos llegan de otros
-   remitentes, antes agrega `CMR_SENDERS` o `MP_SENDERS` en las Propiedades del script (dominios
-   separados por coma). Con eso activo, `backfill` carga las compras de los últimos 35 días sin notificaciones.
+5. Ejecuta `activarLecturaCorreos()` para prender la lectura cada 5 minutos (Ajustes → Captura
+   automática muestra cuándo fue la última). Si los avisos llegan de otros remitentes, antes agrega
+   `CMR_SENDERS` o `MP_SENDERS` en las Propiedades del script (remitentes separados por coma).
+   Con eso activo, `backfill` carga las transferencias de los últimos 35 días sin notificaciones.
 6. Opcional, para el botón *Enviar informe de prueba* de la app: **Implementar → Nueva implementación →
    Aplicación web** (ejecutar como *Yo*, acceso *Cualquier persona*). Pega la URL en Ajustes.
    Sin esto, puedes ejecutar `sendTestReport` desde el editor.
@@ -181,7 +192,7 @@ curl -X POST https://<ref>.supabase.co/functions/v1/ingest \
 
 - **Formato de los correos:** si CMR o Mercado Pago lo cambian, el parser deja de leerlos hasta que lo ajustes
   (ver arriba). Mientras tanto te llega el aviso "No pude registrar un pago".
-- **Alcance del Atajo:** solo se activa con pagos por Apple Pay. El resto de los pagos se capta por correo,
-  con hasta 5 minutos de retraso.
+- **Alcance del Atajo:** solo se activa con pagos por Apple Pay. Lo que pagues con la CMR física o
+  escribiendo su número en una web no llega por ninguna vía: regístralo a mano (Movimientos → +).
 - **Push en iOS:** requiere iOS 16.4+ y abrir la app desde el ícono de inicio.
 - **Supabase gratuito:** pausa los proyectos inactivos. El `heartbeat` diario de Apps Script lo evita.

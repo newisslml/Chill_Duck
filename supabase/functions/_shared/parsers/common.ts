@@ -20,6 +20,8 @@ export interface ParsedPurchase {
   amount: number;
   purchasedAt: Date;
   installments: number;
+  /** Deja el movimiento en "revisar categoría" (p. ej. transferencias, que pueden ser a ti mismo). */
+  needsReview?: boolean;
 }
 
 export interface Ignored {
@@ -84,8 +86,12 @@ const AMOUNT_LABELS = [
 ];
 
 /** Monto de la compra: primero campos etiquetados, luego frases, luego el primer "$" del texto. */
-export function findAmount(text: string, sentencePatterns: readonly RegExp[] = []): number | null {
-  const fromLabel = amountIn(labeled(text, AMOUNT_LABELS));
+export function findAmount(
+  text: string,
+  sentencePatterns: readonly RegExp[] = [],
+  extraLabels: readonly string[] = [],
+): number | null {
+  const fromLabel = amountIn(labeled(text, [...extraLabels, ...AMOUNT_LABELS]));
   if (fromLabel) return fromLabel;
   for (const re of sentencePatterns) {
     const m = re.exec(text);

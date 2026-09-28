@@ -1,25 +1,31 @@
 /**
  * Chill Duck · Google Apps Script (corre en tu cuenta de Gmail)
  *
- * 1. Cada 5 minutos lee los avisos de compra de CMR y Mercado Pago y los envía a Supabase.
+ * 1. Cada 5 minutos lee los avisos de Banco Falabella (transferencias que haces), Mercado Pago
+ *    y los pagos que te compartes desde la app del banco con asunto "Pago CMR" (la imagen se
+ *    lee con el OCR de Google Drive), y los envía a Supabase. Se activa con `activarLecturaCorreos()`.
  * 2. El día 1 de cada mes envía a tu correo el informe del mes anterior.
  * 3. Una vez al día hace un "ping" para que Supabase gratuito no pause el proyecto.
  *
  * Configuración: Configuración del proyecto (⚙) → Propiedades del script:
  *   SUPABASE_URL   https://xxxx.supabase.co
  *   INGEST_TOKEN   el token de la sección "Captura automática" en Ajustes de la app
- *   CMR_SENDERS    (opcional) remitentes de CMR separados por coma
+ *   CMR_SENDERS    (opcional) remitentes de Banco Falabella / CMR separados por coma
  *   MP_SENDERS     (opcional) remitentes de Mercado Pago separados por coma
  * Después ejecuta `setup` una vez y acepta los permisos.
  */
 
+// Solo avisos transaccionales: contacto@cl.bancofalabella.com es publicidad.
 var DEFAULT_SENDERS = {
-  CMR_SENDERS: 'bancofalabella.cl',
+  CMR_SENDERS: 'notificaciones@cl.bancofalabella.com',
   MP_SENDERS: 'mercadopago.com, mercadopago.cl',
 };
 
 /** Días hacia atrás que revisa cada pasada (cubre correos que llegan con atraso). */
 var LOOKBACK_DAYS = 2;
+
+/** Asunto con que te envías un pago desde la app del banco (Compartir → Gmail, a tu correo). */
+var SHARED_SUBJECT = 'Pago CMR';
 
 /**
  * Lee un valor de las propiedades del script o, si no está, de CHILL_DUCK_CONFIG
@@ -85,38 +91,59 @@ function scan_(days, ignoreSeen) {
     var props = PropertiesService.getScriptProperties();
     var stored = props.getProperties();
     var since = Date.now() - days * 86400000;
-    var query = 'from:(' + cfg.senders.join(' OR ') + ') newer_than:' + days + 'd';
+    var searches = [
+      { query: 'from:(' + cfg.senders.join(' OR ') + ') newer_than:' + days + 'd', shared: false },
+      { query: 'from:me subject:"' + SHARED_SUBJECT + '" newer_than:' + days + 'd', shared: true },
+    ];
     // Resumen que se reporta a Supabase para ver desde la app si la lectura funciona.
-    var stats = { at: new Date().toISOString(), query: query, found: 0, sent: 0, skipped: 0, failed: 0, results: {}, errors: [] };
+    var stats = {
+      at: new Date().toISOString(),
+      query: searches.map(function (s) { return s.query; }).join(' | '),
+      found: 0, sent: 0, skipped: 0, failed: 0, results: {}, errors: [],
+    };
 
     try {
-      GmailApp.search(query, 0, 200).forEach(function (thread) {
-        thread.getMessages().forEach(function (msg) {
-          stats.found++;
-          var key = 'seen_' + msg.getId();
-          if (msg.getDate().getTime() < since || (!ignoreSeen && stored[key])) {
-            stats.skipped++;
-            return;
-          }
-          var res = post_('ingest', {
-            source: 'email',
-            messageId: msg.getId(),
-            from: msg.getFrom(),
-            subject: msg.getSubject(),
-            date: msg.getDate().toISOString(),
-            body: msg.getPlainBody(),
-            silent: silent,
+      searches.forEach(function (search) {
+        GmailApp.search(search.query, 0, 200).forEach(function (thread) {
+          thread.getMessages().forEach(function (msg) {
+            stats.found++;
+            var key = 'seen_' + msg.getId();
+            if (msg.getDate().getTime() < since || (!ignoreSeen && stored[key])) {
+              stats.skipped++;
+              return;
+            }
+            var payload = {
+              source: 'email',
+              messageId: msg.getId(),
+              from: msg.getFrom(),
+              subject: msg.getSubject(),
+              date: msg.getDate().toISOString(),
+              body: msg.getPlainBody(),
+              silent: silent,
+            };
+            if (search.shared) {
+              payload.shared = true;
+              try {
+                payload.body = sharedText_(msg);
+              } catch (err) {
+                stats.failed++; // se reintenta en la próxima pasada
+                if (stats.errors.length < 3) stats.errors.push('OCR: ' + (err && err.message ? err.message : err));
+                console.error(msg.getSubject() + ' → OCR falló: ' + err);
+                return;
+              }
+            }
+            var res = post_('ingest', payload);
+            if (res.ok) {
+              props.setProperty(key, String(Date.now()));
+              stats.sent++;
+              stats.results[res.body.status] = (stats.results[res.body.status] || 0) + 1;
+              console.log(msg.getSubject() + ' → ' + res.body.status + (res.body.reason ? ' (' + res.body.reason + ')' : ''));
+            } else {
+              stats.failed++; // se reintenta en la próxima pasada
+              if (stats.errors.length < 3) stats.errors.push('HTTP ' + res.code + ': ' + JSON.stringify(res.body).slice(0, 200));
+              console.error(msg.getSubject() + ' → HTTP ' + res.code + ' ' + JSON.stringify(res.body));
+            }
           });
-          if (res.ok) {
-            props.setProperty(key, String(Date.now()));
-            stats.sent++;
-            stats.results[res.body.status] = (stats.results[res.body.status] || 0) + 1;
-            console.log(msg.getSubject() + ' → ' + res.body.status + (res.body.reason ? ' (' + res.body.reason + ')' : ''));
-          } else {
-            stats.failed++; // se reintenta en la próxima pasada
-            if (stats.errors.length < 3) stats.errors.push('HTTP ' + res.code + ': ' + JSON.stringify(res.body).slice(0, 200));
-            console.error(msg.getSubject() + ' → HTTP ' + res.code + ' ' + JSON.stringify(res.body));
-          }
         });
       });
       pruneSeen_(props, stored);
@@ -130,6 +157,31 @@ function scan_(days, ignoreSeen) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Texto de un pago compartido desde la app del banco: llega como imagen, que se convierte en un
+ * documento temporal de Google Docs con OCR (luego va a la papelera). Suma el texto del correo
+ * por si algún día el banco comparte el detalle como texto.
+ */
+function sharedText_(msg) {
+  var images = msg.getAttachments({ includeInlineImages: true }).filter(function (a) {
+    var type = a.getContentType();
+    return type.indexOf('image/') === 0 || type === 'application/pdf';
+  });
+  var texts = images.map(function (image) {
+    var doc = Drive.Files.create({ name: 'Chill Duck OCR (temporal)', mimeType: MimeType.GOOGLE_DOCS }, image.copyBlob(), {
+      ocrLanguage: 'es',
+      fields: 'id',
+    });
+    try {
+      return DocumentApp.openById(doc.id).getBody().getText();
+    } finally {
+      DriveApp.getFileById(doc.id).setTrashed(true);
+    }
+  });
+  texts.push(msg.getPlainBody());
+  return texts.join('\n\n').trim();
 }
 
 /** Olvida los ids de más de 5 días (ya quedaron fuera de la ventana de búsqueda). */
@@ -219,9 +271,8 @@ function diagnostico() {
 
 /**
  * Ejecútalo una vez: valida la configuración y crea los disparadores del informe mensual
- * y el heartbeat. No programa la lectura de correos: ejecuta `diagnostico` primero (o revisa
- * Ajustes → Captura automática en la app) y, solo si tu banco SÍ envía avisos de compra por
- * correo, activa `scanPurchaseEmails` a mano con `activarLecturaCorreos()`.
+ * y el heartbeat. La lectura de correos (transferencias de Banco Falabella) se activa aparte
+ * con `activarLecturaCorreos()`.
  */
 function setup() {
   heartbeat(); // falla aquí si la URL o el token están mal
@@ -236,7 +287,7 @@ function setup() {
   console.log('Listo. Revisa el diagnóstico en Ajustes → Captura automática de la app.');
 }
 
-/** Actívalo solo si `diagnostico` (o la app) muestra avisos reales de compra por correo. */
+/** Actívalo una vez para registrar las transferencias que haces desde Banco Falabella. */
 function activarLecturaCorreos() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'scanPurchaseEmails') ScriptApp.deleteTrigger(t);

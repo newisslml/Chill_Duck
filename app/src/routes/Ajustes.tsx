@@ -69,6 +69,9 @@ function ago(iso: string): string {
 function CaptureStatus({ settings }: { settings: Settings }) {
   const mp = settings.mp_sync;
   const mpStale = mp && Date.now() - Date.parse(mp.at) > 15 * 60_000;
+  // El disparador corre cada 5 minutos; sin lecturas recientes es que no está activado.
+  const scan = settings.last_scan;
+  const scanStale = !scan || Date.now() - Date.parse(scan.at) > 15 * 60_000;
   const rows: { label: string; ok: boolean; text: string }[] = [
     {
       label: 'Mercado Pago',
@@ -83,6 +86,17 @@ function CaptureStatus({ settings }: { settings: Settings }) {
       label: 'Script de Gmail',
       ok: Boolean(settings.script_seen_at),
       text: settings.script_seen_at ? `Activo · ${ago(settings.script_seen_at)}` : 'Falta ejecutar setup',
+    },
+    {
+      label: 'Correos Banco Falabella',
+      ok: Boolean(scan && !scan.errors.length && !scanStale),
+      text: !scan
+        ? 'Falta ejecutar activarLecturaCorreos'
+        : scan.errors.length
+          ? `Error ${ago(scan.at)}: ${scan.errors[0]}`
+          : scanStale
+            ? `Falta ejecutar activarLecturaCorreos (última lectura ${ago(scan.at)})`
+            : `Correos revisados ${ago(scan.at)}`,
     },
   ];
   return (

@@ -1,7 +1,8 @@
 // Registra un pago que llega desde Gmail (Apps Script) o desde un Atajo de iOS.
 //
 // POST /functions/v1/ingest   cabecera x-ingest-token: <token de Ajustes>
-//   { "source": "email", "messageId", "from", "subject", "date", "body", "silent"? }
+//   { "source": "email", "messageId", "from", "subject", "date", "body", "silent"?, "shared"? }
+//     shared: movimiento que te enviaste desde la app del banco (asunto "Pago CMR"); body = texto OCR de la imagen
 //   { "source": "apple_pay", "amount": "$12.990", "merchant": "LIDER", "card": "CMR Mastercard" }
 //   { "source": "manual", "amount": "8490", "merchant": "Starbucks", "method": "Mercado Pago", "installments"? }
 //   { "source": "ping", "scan"?, "diagnostic"? }   ← estado de Apps Script; también mantiene activo Supabase
@@ -12,6 +13,7 @@ import { json, serviceClient, settingsForRequest } from '../_shared/db.ts';
 import { METHODS, methodFromCardName, type Method } from '../_shared/domain.ts';
 import { parseCLP } from '../_shared/money.ts';
 import { parseEmail } from '../_shared/parsers/index.ts';
+import { parseSharedEmail, sharedRef } from '../_shared/parsers/shared.ts';
 import { notifyUser } from '../_shared/push.ts';
 import { recordPayment, type PaymentCandidate } from '../_shared/record.ts';
 
@@ -20,13 +22,15 @@ type Parsed = { ok: true; candidate: PaymentCandidate } | { ok: false; reason: s
 // deno-lint-ignore no-explicit-any
 function toCandidate(body: any): Parsed {
   if (body.source === 'email') {
-    const result = parseEmail({
+    const email = {
       messageId: String(body.messageId ?? ''),
       from: String(body.from ?? ''),
       subject: String(body.subject ?? ''),
       date: String(body.date ?? new Date().toISOString()),
       body: String(body.body ?? ''),
-    });
+    };
+    const shared = body.shared === true;
+    const result = shared ? parseSharedEmail(email) : parseEmail(email);
     if (result.kind === 'ignore') return { ok: false, reason: result.reason };
     return {
       ok: true,
@@ -37,8 +41,10 @@ function toCandidate(body: any): Parsed {
         purchasedAt: result.purchasedAt,
         installments: result.installments,
         source: 'email',
-        externalRef: body.messageId ? `gmail:${body.messageId}` : null,
-        raw: { from: body.from, subject: body.subject, date: body.date },
+        externalRef: shared ? sharedRef(result) : body.messageId ? `gmail:${body.messageId}` : null,
+        needsReview: result.needsReview,
+        // El texto leído queda guardado para ajustar los patrones si el banco cambia el formato.
+        raw: { from: body.from, subject: body.subject, date: body.date, body: email.body.slice(0, 2000) },
       },
     };
   }
@@ -68,8 +74,9 @@ function toCandidate(body: any): Parsed {
   }
 
   // apple_pay
-  const method = methodFromCardName(body.card);
-  if (!method) return { ok: false, reason: `Tarjeta no reconocida: "${body.card ?? ''}"` };
+  // El Atajo solo se activa con la CMR (la tarjeta de Mercado Pago no entra a Wallet en Chile),
+  // así que un nombre de tarjeta que no dice "CMR" igual es la CMR. Queda guardado en `raw.card`.
+  const method = methodFromCardName(body.card) ?? 'cmr';
   const amount = parseCLP(body.amount ?? '');
   if (amount <= 0) throw new Error(`Monto inválido: "${body.amount}"`);
   return {

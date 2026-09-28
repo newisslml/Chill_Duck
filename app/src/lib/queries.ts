@@ -20,6 +20,8 @@ export interface Settings extends Budget {
   mp_enabled: boolean;
   /** Último contacto del script de Gmail (Apps Script). */
   script_seen_at?: string | null;
+  /** Última lectura de correos del script (transferencias y "Pago CMR" de Banco Falabella). */
+  last_scan?: { at: string; errors: string[] } | null;
   /** Última sincronización con la API de Mercado Pago. */
   mp_sync?: { at: string; created: number; errors: string[] } | null;
 }

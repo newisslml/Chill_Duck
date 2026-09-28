@@ -1,0 +1,22 @@
+From: Yo <yo@gmail.com>
+Subject: Pago CMR
+Date: 2026-09-28T12:30:00.000Z
+
+Banco Falabella
+Compra Suc Cafe Ejemplo
+$10.400
+Fecha y hora
+Cuota
+25/09/2026 17:19
+Cambiar a cuotas
+Comercio Compra Suc Cafe Ejemplo
+Código de autorización
+000000
+Origen
+Nacional
+Categoría
+Restaurantes & Bares
+Comprobante de
+transacción
+FALABELLA
+COMPROBANT

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ParseError, parseEmail, type EmailInput } from './index.ts';
+import { parseSharedEmail, sharedRef } from './shared.ts';
 
 function fixture(name: string): EmailInput {
   const raw = readFileSync(new URL(`./fixtures/${name}.eml.txt`, import.meta.url), 'utf8').replace(/\r/g, '');
@@ -40,6 +41,118 @@ describe('CMR Falabella', () => {
 
   it('ignora el pago de la tarjeta', () => {
     expect(parseEmail(fixture('cmr-pago-recibido')).kind).toBe('ignore');
+  });
+});
+
+describe('Banco Falabella: transferencias', () => {
+  const email = (subject: string, body: string): EmailInput => ({
+    messageId: 'x',
+    from: 'Banco Falabella <notificaciones@cl.bancofalabella.com>',
+    subject,
+    date: '2026-09-07T11:18:15.000Z',
+    body,
+  });
+
+  it('registra una transferencia a otra persona, para revisar (etiquetas pegadas al valor)', () => {
+    expect(parseEmail(fixture('cmr-transferencia-realizada'))).toEqual({
+      kind: 'purchase',
+      method: 'cmr',
+      merchant: 'Transferencia a María González R',
+      amount: 250000,
+      purchasedAt: new Date('2026-09-28T11:50:00.000Z'),
+      installments: 1,
+      needsReview: true,
+    });
+  });
+
+  it('ignora una transferencia a tu propia cuenta', () => {
+    const own = fixture('cmr-transferencia-realizada');
+    const parsed = parseEmail({ ...own, body: own.body.replace('María González R', 'Juan Pérez S') });
+    expect(parsed).toEqual({ kind: 'ignore', reason: 'Transferencia a tu propia cuenta (Juan Pérez S)' });
+  });
+
+  it('sin destinatario igual registra el monto', () => {
+    const parsed = parseEmail(email('Aviso de transferencia de fondos realizada', 'Monto: $15.500\nFecha: 07/09/2026'));
+    expect(parsed).toMatchObject({ merchant: 'Transferencia Banco Falabella', amount: 15500 });
+  });
+
+  it.each([
+    'Aviso de transferencia de fondos recibida',
+    'Comprobante transferencia Avance Banco Falabella',
+    'Aviso de pago de tarjeta de crédito',
+    'Información sobre la evaluación de tu solicitud',
+    '¡Esta noticia no te la puedes perder!',
+  ])('ignora "%s"', (subject) => {
+    expect(parseEmail(email(subject, 'Tu compra por $19.990 en FALABELLA.COM el 07/09/2026.')).kind).toBe('ignore');
+  });
+});
+
+describe('Movimiento compartido desde la app (OCR de la imagen)', () => {
+  const shared = (body: string, subject = 'Pago CMR'): EmailInput => ({
+    messageId: 'x',
+    from: 'Yo <yo@gmail.com>',
+    subject,
+    date: '2026-09-28T13:05:00.000Z',
+    body,
+  });
+  const ocr = [
+    'Detalle de la compra',
+    'Comercio',
+    'LIDER EXPRESS PROVIDENCIA',
+    'Fecha y hora',
+    '25/09/2026 14:32',
+    'Cuotas',
+    '3',
+    'Monto',
+    '$36.990',
+  ].join('\n');
+
+  it('lee el comprobante con el método del asunto', () => {
+    expect(parseSharedEmail(shared(ocr))).toEqual({
+      kind: 'purchase',
+      method: 'cmr',
+      merchant: 'LIDER EXPRESS PROVIDENCIA',
+      amount: 36990,
+      purchasedAt: new Date('2026-09-25T17:32:00.000Z'),
+      installments: 3,
+    });
+  });
+
+  it('lee el comprobante real de Banco Falabella ("Comercio Compra X" en una línea)', () => {
+    expect(parseSharedEmail(fixture('cmr-compartido-ocr'))).toEqual({
+      kind: 'purchase',
+      method: 'cmr',
+      merchant: 'Suc Cafe Ejemplo',
+      amount: 10400,
+      purchasedAt: new Date('2026-09-25T20:19:00.000Z'),
+      installments: 1,
+    });
+  });
+
+  it('sin etiqueta Comercio usa el título sobre el monto', () => {
+    const ocr = fixture('cmr-compartido-ocr');
+    const parsed = parseSharedEmail({ ...ocr, body: ocr.body.replace(/^Comercio .*\n/m, '') });
+    expect(parsed).toMatchObject({ merchant: 'Suc Cafe Ejemplo', amount: 10400 });
+  });
+
+  it('el mismo pago compartido dos veces tiene el mismo id', () => {
+    const a = parseSharedEmail(shared(ocr));
+    const b = parseSharedEmail({ ...shared(ocr), messageId: 'y', date: '2026-09-29T10:00:00.000Z' });
+    if (a.kind !== 'purchase' || b.kind !== 'purchase') throw new Error('debió leerse');
+    expect(sharedRef(a)).toBe('shared:cmr:36990:2026-09-25T17:32:00.000Z');
+    expect(sharedRef(b)).toBe(sharedRef(a));
+  });
+
+  it('sin fecha en la imagen falla en vez de usar la del correo', () => {
+    expect(() => parseSharedEmail(shared('Comercio: LIDER\nMonto: $12.990'))).toThrow(ParseError);
+  });
+
+  it('sin texto (OCR vacío) falla', () => {
+    expect(() => parseSharedEmail(shared(''))).toThrow(ParseError);
+  });
+
+  it('ignora un asunto sin método de pago', () => {
+    expect(parseSharedEmail(shared(ocr, 'Pago')).kind).toBe('ignore');
   });
 });
 
