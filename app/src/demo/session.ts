@@ -6,3 +6,8 @@ const demoSession = { user: { id: 'demo', email: 'demo@chillduck.app' } } as Ses
 export function useSession(): Session {
   return demoSession;
 }
+
+/** Modo demo: no hay correos, nunca se recupera una contraseña. */
+export function usePasswordRecovery(): { recovering: boolean; finish: () => void } {
+  return { recovering: false, finish: () => {} };
+}

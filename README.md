@@ -64,6 +64,9 @@ Necesitas Node 20+ y cuentas gratuitas en [Supabase](https://supabase.com) y [Ve
 3. En el dashboard, crea tu usuario en **Authentication → Users → Add user** (correo + contraseña,
    marca *Auto Confirm*).
 4. Desactiva registros nuevos en **Authentication → Sign In / Providers → Allow new users to sign up**.
+5. En **Authentication → URL Configuration** pon la URL de la app en Vercel (paso 4 más abajo) como
+   *Site URL* y agrégala también en *Redirect URLs*. El enlace del correo de "¿Olvidaste tu contraseña?"
+   vuelve a esa dirección; si no está en la lista, Supabase lo manda a otra parte.
 
 ### 2. Notificaciones push (claves VAPID)
 

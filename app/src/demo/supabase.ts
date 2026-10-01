@@ -6,6 +6,8 @@ const unavailable = () => {
 
 export const isConfigured = true;
 
+export const authLanding = { recovery: false, linkFailed: false };
+
 export const functionsUrl = 'https://tu-proyecto.supabase.co/functions/v1';
 
 export const supabase = {

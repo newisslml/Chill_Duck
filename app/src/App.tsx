@@ -4,7 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { ErrorNote, Spinner } from './components/ui';
 import { MonthProvider } from './lib/month';
 import { useRealtimeSync, useSettings } from './lib/queries';
-import { useSession } from './lib/session';
+import { usePasswordRecovery, useSession } from './lib/session';
 import { isConfigured } from './lib/supabase';
 import { Ajustes } from './routes/Ajustes';
 import { Inicio } from './routes/Inicio';
@@ -12,6 +12,7 @@ import { Login } from './routes/Login';
 import { MetodosPago } from './routes/MetodosPago';
 import { Movimientos } from './routes/Movimientos';
 import { Notificaciones } from './routes/Notificaciones';
+import { NuevaClave } from './routes/NuevaClave';
 import { Onboarding } from './routes/Onboarding';
 
 function Shell({ session }: { session: Session }) {
@@ -47,6 +48,7 @@ function Shell({ session }: { session: Session }) {
 
 export function App() {
   const session = useSession();
+  const recovery = usePasswordRecovery();
 
   if (!isConfigured) {
     return (
@@ -61,6 +63,7 @@ export function App() {
   }
   if (session === undefined) return <Spinner />;
   if (!session) return <Login />;
+  if (recovery.recovering) return <NuevaClave onDone={recovery.finish} />;
 
   return (
     <BrowserRouter>
