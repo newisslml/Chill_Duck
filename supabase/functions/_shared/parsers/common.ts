@@ -164,7 +164,17 @@ export function findDate(text: string, fallbackIso: string): Date {
   return Math.abs(parsed.getTime() - fallback.getTime()) > 45 * 86_400_000 ? fallback : parsed;
 }
 
+/**
+ * Cantidad de cuotas de la compra. Entiende "Cuotas: 3", "en 3 cuotas" y el comprobante del banco de una
+ * cuota ya cobrada: "Cuota 2 de 3" (o "2/3"), donde el total es el segundo número.
+ */
 export function findInstallments(text: string): number {
+  const nOfTotal = /\bcuota\s*:?\s*(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})\b(?!\s*[/-]\d)/i.exec(text);
+  if (nOfTotal) {
+    const [n, total] = [Number(nOfTotal[1]), Number(nOfTotal[2])];
+    // El "(?!/\d)" descarta una fecha ("Cuota 25/09/2026"); además la cuota no puede pasar del total.
+    if (n >= 1 && n <= total && total <= 48) return total;
+  }
   const label = labeled(text, ['N° de cuotas', 'Nº de cuotas', 'Número de cuotas', 'Nro. de cuotas', 'Cuotas']);
   const m = /\d{1,2}/.exec(label ?? '') ?? /\ben\s+(\d{1,2})\s+cuotas\b/i.exec(text) ?? /\b(\d{1,2})\s+cuotas\b/i.exec(text);
   const n = m ? Number(m[1] ?? m[0]) : 1;

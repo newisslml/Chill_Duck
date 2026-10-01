@@ -34,6 +34,15 @@ export const CATEGORIES: readonly Category[] = [
 
 export const FALLBACK_CATEGORY = 'otros';
 
+/**
+ * Cuántos meses de facturación se atrasa el cobro de la primera cuota. En CMR, una compra en cuotas
+ * empieza a cobrarse en el estado de cuenta siguiente al que le toca por fecha; en una sola cuota, no.
+ * Misma regla que la vista SQL `month_charges` (migración 20261001010000).
+ */
+export function firstChargeDelay(method: Method, installments: number): 0 | 1 {
+  return method === 'cmr' && installments > 1 ? 1 : 0;
+}
+
 export function categoryById(id: string): Category {
   return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1];
 }

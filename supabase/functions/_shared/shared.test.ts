@@ -226,6 +226,10 @@ describe('report', () => {
     nextCharges: [
       row({ installments: 3, installment_no: 2, charged: 40_000 }),
       row({ method: 'mercadopago', installments: 1, installment_no: 1, charged: 999 }),
+      // CMR cobra la cuota 1 el mes siguiente: una compra en cuotas hecha en septiembre ya es compromiso.
+      row({ installments: 3, installment_no: 1, charged: 25_000, purchased_at: '2026-09-20T15:00:00Z' }),
+      // Una compra en cuotas posterior al cierre (25/09) aún no existía al cerrar el mes.
+      row({ method: 'mercadopago', installments: 3, installment_no: 1, charged: 7_000, purchased_at: '2026-10-02T15:00:00Z' }),
     ],
   });
 
@@ -249,7 +253,7 @@ describe('report', () => {
   });
 
   it('solo cuenta como comprometidas las cuotas de compras anteriores', () => {
-    expect(report.nextCommitted).toEqual({ cmr: 40_000, mercadopago: 0, total: 40_000 });
+    expect(report.nextCommitted).toEqual({ cmr: 65_000, mercadopago: 0, total: 65_000 });
     expect(report.prevSpent).toBe(500_000);
   });
 

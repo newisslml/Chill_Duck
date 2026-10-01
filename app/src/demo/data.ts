@@ -2,7 +2,7 @@
 // (del 25 al 24) para que la app se vea "viva" cualquier día que la abras.
 
 import { addMonths, BILLING_CLOSING_DAY, monthKey, monthStart, zonedToUtc } from '@shared/dates.ts';
-import type { Method, Source } from '@shared/domain.ts';
+import { firstChargeDelay, type Method, type Source } from '@shared/domain.ts';
 import type { ChargeRow } from '@shared/report.ts';
 
 export interface DemoTransaction {
@@ -59,8 +59,10 @@ export function demoTransactions(now = new Date()): DemoTransaction[] {
     tx('CINEMARK', 'entretenimiento', 'mercadopago', 17_800, at(month, 6, 20, 0)),
     tx('JUMBO', 'supermercado', 'cmr', 128_450, at(month, 2, 14, 30)),
     tx('Cuota crédito', 'deudas', 'mercadopago', 150_000, at(month, 1, 8, 0), { source: 'manual', note: 'Crédito de consumo' }),
-    // Mes de facturación anterior: para comparar y para la cuota 2/3 de SHEIN que cae este mes.
+    // Mes de facturación anterior: para comparar, para la cuota 2/3 de SHEIN y la 1/3 de RIPLEY (CMR cobra
+    // la primera cuota un mes después) que caen este mes.
     tx('SHEIN', 'ropa', 'mercadopago', 45_980, at(prev, 18, 22, 5), { installments: 3 }),
+    tx('RIPLEY', 'ropa', 'cmr', 119_970, at(prev, 10, 19, 30), { installments: 3 }),
     tx('JUMBO', 'supermercado', 'cmr', 142_300, at(prev, 3, 12, 0)),
     tx('Cuota crédito', 'deudas', 'mercadopago', 150_000, at(prev, 1, 8, 0), { source: 'manual' }),
     tx('UBER', 'transporte', 'cmr', 12_400, at(prev, 12, 23, 40)),
@@ -87,7 +89,7 @@ export function expandCharges(transactions: readonly DemoTransaction[]): ChargeR
       installment_no: i + 1,
       total: t.amount,
       charged: i === t.installments - 1 ? t.amount - base * (t.installments - 1) : base,
-      charge_month: monthStart(addMonths(first, i)),
+      charge_month: monthStart(addMonths(first, i + firstChargeDelay(t.method, t.installments))),
     }));
   });
 }

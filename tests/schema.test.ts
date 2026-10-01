@@ -4,7 +4,8 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { BILLING_CLOSING_DAY, monthKey, monthStart } from '../supabase/functions/_shared/dates.ts';
+import { addMonths, BILLING_CLOSING_DAY, monthKey, monthStart } from '../supabase/functions/_shared/dates.ts';
+import { firstChargeDelay } from '../supabase/functions/_shared/domain.ts';
 
 const USER_A = '00000000-0000-0000-0000-00000000000a';
 const USER_B = '00000000-0000-0000-0000-00000000000b';
@@ -43,7 +44,7 @@ beforeAll(async () => {
 });
 
 describe('migración', () => {
-  it('reparte una compra en cuotas: $120.000 en 3 → $40.000 por mes', async () => {
+  it('reparte una compra en cuotas: $120.000 en 3 → $40.000 por mes, desde el ciclo siguiente en CMR', async () => {
     await asUser(USER_A, () =>
       db.query(
         `insert into transactions (method, merchant, amount, installments, purchased_at)
@@ -57,10 +58,58 @@ describe('migración', () => {
       ),
     );
     expect(rows.map((r) => [r.charge_month.toISOString().slice(0, 7), r.charged, r.installment_no])).toEqual([
-      ['2026-09', 40000, 1],
-      ['2026-10', 40000, 2],
-      ['2026-11', 40000, 3],
+      ['2026-10', 40000, 1],
+      ['2026-11', 40000, 2],
+      ['2026-12', 40000, 3],
     ]);
+  });
+
+  it('CMR: la cuota 2 de una compra del 20/08 en 3 cuotas se cobra en octubre', async () => {
+    await asUser(USER_A, () =>
+      db.query(
+        `insert into transactions (method, merchant, amount, installments, purchased_at)
+         values ('cmr', 'Oferta Perfumes', 61552, 3, '2026-08-20 15:27-04')`,
+      ),
+    );
+    const { rows } = await asUser(USER_A, () =>
+      db.query<{ charge_month: Date; installment_no: number }>(
+        `select charge_month, installment_no from month_charges where merchant = 'Oferta Perfumes' order by installment_no`,
+      ),
+    );
+    expect(rows.map((r) => [r.installment_no, r.charge_month.toISOString().slice(0, 7)])).toEqual([
+      [1, '2026-09'],
+      [2, '2026-10'],
+      [3, '2026-11'],
+    ]);
+  });
+
+  it('el atraso de la primera cuota solo aplica a CMR en cuotas (igual que en TypeScript)', async () => {
+    const cases = [
+      ['CMR AL CONTADO', 'cmr', 1, '2026-08'],
+      ['CMR EN CUOTAS', 'cmr', 2, '2026-09'],
+      ['MP AL CONTADO', 'mercadopago', 1, '2026-08'],
+      ['MP EN CUOTAS', 'mercadopago', 2, '2026-08'],
+    ] as const;
+    for (const [merchant, method, installments] of cases) {
+      await asUser(USER_A, () =>
+        db.query(
+          `insert into transactions (method, merchant, amount, installments, purchased_at)
+           values ($1, $2, 10000, $3, '2026-08-20 15:00-04')`,
+          [method, merchant, installments],
+        ),
+      );
+    }
+    const { rows } = await asUser(USER_A, () =>
+      db.query<{ merchant: string; charge_month: Date }>(
+        `select merchant, charge_month from month_charges where merchant = any($1) and installment_no = 1`,
+        [cases.map(([merchant]) => merchant)],
+      ),
+    );
+    const got = Object.fromEntries(rows.map((r) => [r.merchant, r.charge_month.toISOString().slice(0, 7)]));
+    expect(got).toEqual(Object.fromEntries(cases.map(([merchant, , , month]) => [merchant, month])));
+    for (const [, method, installments, month] of cases) {
+      expect(addMonths('2026-08', firstChargeDelay(method, installments))).toBe(month);
+    }
   });
 
   it('la última cuota absorbe el resto', async () => {

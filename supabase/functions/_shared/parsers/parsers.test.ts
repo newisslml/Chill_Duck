@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { findInstallments } from './common.ts';
 import { ParseError, parseEmail, type EmailInput } from './index.ts';
 import { parseSharedEmail, sharedRef } from './shared.ts';
 
@@ -127,6 +128,30 @@ describe('Movimiento compartido desde la app (OCR de la imagen)', () => {
       purchasedAt: new Date('2026-09-25T20:19:00.000Z'),
       installments: 1,
     });
+  });
+
+  it('un comprobante "Cuota 2 de 3" registra la compra en 3 cuotas, con su fecha original', () => {
+    expect(parseSharedEmail(fixture('cmr-compartido-cuota-ocr'))).toEqual({
+      kind: 'purchase',
+      method: 'cmr',
+      merchant: 'Oferta Perfumes',
+      amount: 61552, // "Monto total" (el valor cuota $22.437 incluye intereses)
+      purchasedAt: new Date('2026-08-20T19:27:00.000Z'),
+      installments: 3,
+    });
+  });
+
+  it.each([
+    ['Cuota\n2 de 3', 3],
+    ['Cuota 2 de 3', 3],
+    ['Cuota: 1 de 12', 12],
+    ['Cuota 2/3', 3],
+    ['Cuota\n25/09/2026 17:19\nCambiar a cuotas', 1], // una fecha no es "N de M"
+    ['Cuota 25/09/2026', 1],
+    ['Cuota 5 de 3', 1], // la cuota no puede pasar del total
+    ['Cuota 1 de 99', 1],
+  ])('cuotas en %j → %i', (text, expected) => {
+    expect(findInstallments(text)).toBe(expected);
   });
 
   it('sin etiqueta Comercio usa el título sobre el monto', () => {

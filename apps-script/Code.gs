@@ -292,7 +292,8 @@ function diagnostico() {
  */
 function setup() {
   heartbeat(); // falla aquí si la URL o el token están mal
-  var handlers = ['scanPurchaseEmails', 'sendMonthlyReport', 'heartbeat'];
+  // No toca el disparador de lectura de correos (`activarLecturaCorreos`): se creó aparte y setup no lo recrea.
+  var handlers = ['sendMonthlyReport', 'heartbeat'];
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (handlers.indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });

@@ -47,7 +47,9 @@ Apps Script (día 25, 08:00) ─► Edge Function `monthly-report` ─► correo
   en el mes siguiente. Vale igual para CMR y Mercado Pago. Para cambiar el día de cierre, modifícalo en
   `BILLING_CLOSING_DAY` (`supabase/functions/_shared/dates.ts`), en la función `month_of` de una migración
   nueva y en `BILLING_CLOSING_DAY_` de `apps-script/Code.gs`.
-- Las compras en cuotas suman **solo la cuota del mes**. La cuota 1 cae en el mes de la compra.
+- Las compras en cuotas suman **solo la cuota del mes**. En **CMR** la primera cuota se cobra en el estado de cuenta
+  siguiente: una compra del 20 de agosto en 3 cuotas trae la cuota 1 en septiembre, la 2 en octubre y la 3 en
+  noviembre. Una compra en 1 cuota, y todo lo de Mercado Pago, cuenta en el mes de la compra.
 - El 100% del gráfico de Inicio son tus ingresos (sueldo + otros ingresos). La marca negra es el tope.
 
 ---

@@ -1,0 +1,26 @@
+From: Yo <yo@gmail.com>
+Subject: Pago CMR
+Date: 2026-10-01T19:00:26.000Z
+
+Banco Falabella
+Oferta Perfumes
+$22.437
+Valor cuota
+Fecha y hora
+20/08/2026 15:27
+Cuota
+2 de 3
+Monto total
+$61.552
+Comercio
+Compra Oferta Perfumes
+Código de autorización
+000000
+Origen
+Nacional
+Categoría
+Salud & Bienestar
+Subcategoría Peluquerías, salón de belleza
+FALABELLA
+Comprobante de transacción
+y barberías

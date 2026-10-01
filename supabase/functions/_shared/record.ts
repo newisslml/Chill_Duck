@@ -7,7 +7,7 @@ import { categorize, type MerchantRule } from './categorize.ts';
 import { monthCharges, type SettingsRow } from './db.ts';
 import { monthKey } from './dates.ts';
 import { DEDUPE_WINDOW_MS, findDuplicate, mergePatch, type IncomingPayment, type StoredPayment } from './dedupe.ts';
-import { METHODS, type Method } from './domain.ts';
+import { firstChargeDelay, METHODS, type Method } from './domain.ts';
 import { formatCLP } from './money.ts';
 import { notifyUser } from './push.ts';
 import { buildReport, methodCap } from './report.ts';
@@ -119,7 +119,8 @@ export interface NotifiableTx {
 export async function notifyPurchase(db: SupabaseClient, settings: SettingsRow, tx: NotifiableTx) {
   const month = monthKey(new Date(tx.purchased_at));
   const report = buildReport({ month, charges: await monthCharges(db, settings.user_id, month), budget: settings });
-  const thisCharge = Math.floor(tx.amount / tx.installments);
+  // Una compra en cuotas de CMR se empieza a cobrar el mes siguiente: no suma a lo gastado de este mes.
+  const thisCharge = firstChargeDelay(tx.method, tx.installments) === 0 ? Math.floor(tx.amount / tx.installments) : 0;
   const methodSpent = report.byMethod[tx.method].spent;
   const cap = methodCap(settings, tx.method);
 

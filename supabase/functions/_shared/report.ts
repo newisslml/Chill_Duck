@@ -4,7 +4,7 @@
 import { budgetStatus, type BudgetStatus } from './alerts.ts';
 import { normalizeMerchant } from './categorize.ts';
 import { categoryById, METHOD_IDS, METHODS, type Method, type Source } from './domain.ts';
-import { monthLabel, monthPeriodLabel } from './dates.ts';
+import { addMonths, monthLabel, monthPeriodLabel, monthStartInstant } from './dates.ts';
 import { formatCLP } from './money.ts';
 
 /** Fila de la vista `month_charges`: lo que una compra carga a un mes (una cuota). */
@@ -146,7 +146,10 @@ export function buildReport({ month, charges, budget, prevCharges, nextCharges }
     .map((c) => ({ ...c, share: spent > 0 ? c.amount / spent : 0 }))
     .sort((a, b) => b.amount - a.amount);
 
-  const committedRows = (nextCharges ?? []).filter((r) => r.installment_no > 1);
+  // Comprometido = cuotas de compras ya hechas al cierre de este mes (la cuota 1 de una compra en CMR
+  // también cae el mes siguiente). Las compras posteriores no cuentan: aún no existían.
+  const nextStart = monthStartInstant(addMonths(month, 1)).getTime();
+  const committedRows = (nextCharges ?? []).filter((r) => r.installments > 1 && Date.parse(r.purchased_at) < nextStart);
   const nextCommitted = {
     cmr: sum(committedRows.filter((r) => r.method === 'cmr')),
     mercadopago: sum(committedRows.filter((r) => r.method === 'mercadopago')),
