@@ -3,11 +3,14 @@ import { budgetStatus, crossedThreshold } from './alerts.ts';
 import { categorize, merchantPattern, type MerchantRule } from './categorize.ts';
 import {
   addMonths,
+  BILLING_CLOSING_DAY,
   dayKey,
+  daysLeftInMonth,
   formatDay,
   fromLocalInput,
   monthKey,
   monthLabel,
+  monthPeriodLabel,
   monthStartInstant,
   toLocalInput,
   zonedToUtc,
@@ -46,11 +49,46 @@ describe('dates (America/Santiago)', () => {
     expect(zonedToUtc(2026, 12, 15, 10, 0).toISOString()).toBe('2026-12-15T13:00:00.000Z');
   });
 
-  it('una compra a las 23:30 del 30/09 cuenta en septiembre aunque en UTC ya sea octubre', () => {
-    const late = zonedToUtc(2026, 9, 30, 23, 30);
-    expect(late.toISOString().startsWith('2026-10-01')).toBe(true);
-    expect(monthKey(late)).toBe('2026-09');
-    expect(dayKey(late)).toBe('2026-09-30');
+  it('el día de cierre es el 24', () => {
+    expect(BILLING_CLOSING_DAY).toBe(24);
+  });
+
+  it('el mes es el de facturación: del 25 al fin de mes cuenta en el mes siguiente', () => {
+    expect(monthKey(zonedToUtc(2026, 9, 24, 12, 0))).toBe('2026-09');
+    expect(monthKey(zonedToUtc(2026, 9, 25, 12, 0))).toBe('2026-10');
+    expect(monthKey(zonedToUtc(2026, 9, 30, 12, 0))).toBe('2026-10');
+    expect(monthKey(zonedToUtc(2026, 10, 1, 12, 0))).toBe('2026-10');
+    expect(monthKey(zonedToUtc(2026, 12, 26, 12, 0))).toBe('2027-01');
+  });
+
+  it('el corte se mide en hora de Chile, no en UTC', () => {
+    const lastMinute = zonedToUtc(2026, 10, 24, 23, 59);
+    expect(lastMinute.toISOString().startsWith('2026-10-25')).toBe(true); // en UTC ya es 25
+    expect(monthKey(lastMinute)).toBe('2026-10');
+    const firstMinute = zonedToUtc(2026, 10, 25, 0, 0);
+    expect(monthKey(firstMinute)).toBe('2026-11');
+    expect(dayKey(firstMinute)).toBe('2026-10-25');
+  });
+
+  it('el mes de facturación empieza el 25 del mes anterior a las 00:00 de Chile', () => {
+    expect(monthStartInstant('2026-09').toISOString()).toBe('2026-08-25T04:00:00.000Z');
+    expect(monthStartInstant('2026-01').toISOString()).toBe('2025-12-25T03:00:00.000Z');
+    // El instante de inicio ya pertenece a su mes y el anterior pertenece al mes previo.
+    expect(monthKey(monthStartInstant('2026-10'))).toBe('2026-10');
+    expect(monthKey(new Date(monthStartInstant('2026-10').getTime() - 1))).toBe('2026-09');
+  });
+
+  it('cuenta los días que quedan hasta el cierre, incluyendo hoy y el día 24', () => {
+    expect(daysLeftInMonth(zonedToUtc(2026, 10, 24, 12, 0))).toBe(1);
+    expect(daysLeftInMonth(zonedToUtc(2026, 10, 1, 12, 0))).toBe(24);
+    expect(daysLeftInMonth(zonedToUtc(2026, 10, 25, 12, 0))).toBe(31); // 25 oct → 24 nov
+    expect(daysLeftInMonth(zonedToUtc(2026, 9, 30, 12, 0))).toBe(25); // 30 sep → 24 oct
+    expect(daysLeftInMonth(zonedToUtc(2026, 12, 31, 12, 0))).toBe(25); // cruza el año
+  });
+
+  it('describe el período del mes', () => {
+    expect(monthPeriodLabel('2026-10')).toBe('25 sep – 24 oct');
+    expect(monthPeriodLabel('2026-01')).toBe('25 dic – 24 ene');
   });
 
   it('suma meses cruzando años', () => {
@@ -66,7 +104,6 @@ describe('dates (America/Santiago)', () => {
   it('ida y vuelta con datetime-local', () => {
     expect(toLocalInput('2026-09-21T16:45:00.000Z')).toBe('2026-09-21T13:45');
     expect(fromLocalInput('2026-09-21T13:45')).toBe('2026-09-21T16:45:00.000Z');
-    expect(monthStartInstant('2026-09').toISOString()).toBe('2026-09-01T04:00:00.000Z');
   });
 });
 

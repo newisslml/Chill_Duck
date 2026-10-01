@@ -4,6 +4,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { BILLING_CLOSING_DAY, monthKey, monthStart } from '../supabase/functions/_shared/dates.ts';
 
 const USER_A = '00000000-0000-0000-0000-00000000000a';
 const USER_B = '00000000-0000-0000-0000-00000000000b';
@@ -77,17 +78,55 @@ describe('migración', () => {
     expect(rows.map((r) => r.charged)).toEqual([33333, 33333, 33334]);
   });
 
-  it('el mes se cuenta en hora de Chile', async () => {
+  it('el mes es el de facturación: el día de cierre cuenta, el siguiente ya es del mes que viene', async () => {
+    const closing = BILLING_CLOSING_DAY;
+    const cases = [
+      // [comercio, instante, charge_month esperado]
+      ['CIERRE', `2026-10-${closing} 23:30-03`, '2026-10-01'], // 23:30 del 24 en Chile (ya es 25 en UTC)
+      ['APERTURA', `2026-10-${closing + 1} 00:10-03`, '2026-11-01'], // 00:10 del 25
+      ['FIN DE MES', '2026-09-30 12:00-03', '2026-10-01'],
+      ['INICIO DE MES', '2026-10-01 12:00-03', '2026-10-01'],
+      ['FIN DE AÑO', '2026-12-26 12:00-03', '2027-01-01'],
+    ];
+    for (const [merchant, at] of cases) {
+      await asUser(USER_A, () =>
+        db.query(`insert into transactions (method, merchant, amount, purchased_at) values ('cmr', $1, 5000, $2)`, [
+          merchant,
+          at,
+        ]),
+      );
+    }
+    const { rows } = await asUser(USER_A, () =>
+      db.query<{ merchant: string; charge_month: Date }>(
+        `select merchant, charge_month from month_charges where merchant = any($1)`,
+        [cases.map(([merchant]) => merchant)],
+      ),
+    );
+    const got = Object.fromEntries(rows.map((r) => [r.merchant, r.charge_month.toISOString().slice(0, 10)]));
+    expect(got).toEqual(Object.fromEntries(cases.map(([merchant, , month]) => [merchant, month])));
+    // El mismo corte que usa la app (TypeScript): si uno cambia el día y el otro no, esto falla.
+    for (const [, at, month] of cases) {
+      expect(monthStart(monthKey(new Date(at)))).toBe(month);
+    }
+  });
+
+  it('las cuotas parten en el mes de facturación de la compra', async () => {
     await asUser(USER_A, () =>
       db.query(
-        `insert into transactions (method, merchant, amount, purchased_at)
-         values ('cmr', 'NOCHE', 5000, '2026-10-01 02:30+00')`,
+        `insert into transactions (method, merchant, amount, installments, purchased_at)
+         values ('mercadopago', 'CUOTAS TARDE', 90000, 3, '2026-09-28 12:00-03')`,
       ),
     );
     const { rows } = await asUser(USER_A, () =>
-      db.query<{ charge_month: Date }>(`select charge_month from month_charges where merchant = 'NOCHE'`),
+      db.query<{ charge_month: Date; installment_no: number }>(
+        `select charge_month, installment_no from month_charges where merchant = 'CUOTAS TARDE' order by installment_no`,
+      ),
     );
-    expect(rows[0].charge_month.toISOString().slice(0, 10)).toBe('2026-09-01');
+    expect(rows.map((r) => [r.charge_month.toISOString().slice(0, 7), r.installment_no])).toEqual([
+      ['2026-10', 1],
+      ['2026-11', 2],
+      ['2026-12', 3],
+    ]);
   });
 
   it('cada usuario ve solo sus movimientos', async () => {

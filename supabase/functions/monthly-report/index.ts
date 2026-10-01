@@ -1,8 +1,9 @@
-// Informe de un mes. Lo llama Apps Script el día 1 para enviarlo por correo desde tu Gmail.
+// Informe de un mes de facturación. Lo llama Apps Script el día 25 (el día después del cierre) para
+// enviarlo por correo desde tu Gmail.
 //
 // POST /functions/v1/monthly-report   cabecera x-ingest-token: <token de Ajustes>
 //   { "month": "2026-09", "save": true }
-// Sin `month` usa el mes anterior. Con `save: true` guarda la foto en monthly_reports y avisa por push.
+// Sin `month` usa el mes de facturación anterior al actual. Con `save: true` guarda la foto en monthly_reports y avisa por push.
 // Responde { month, to, subject, html, text, report }.
 
 import { addMonths, isMonthKey, monthKey, monthName, monthStart } from '../_shared/dates.ts';

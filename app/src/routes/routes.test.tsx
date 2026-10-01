@@ -123,6 +123,7 @@ describe('vistas', () => {
     const html = await render('/');
     expect(html).toContain('$539.242'); // gastado
     expect(html).toContain('41%'); // de $1.300.000
+    expect(html).toContain('25 ago – 24 sep'); // período del mes de facturación
     expect(html).toContain('Supermercado');
     expect(html).toContain('$760.758'); // ahorro a la fecha
     expect(html).toContain('Hi, <!-- -->Newiss');

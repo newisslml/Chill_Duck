@@ -1,4 +1,4 @@
-import { addMonths, monthLabel } from '@shared/dates.ts';
+import { addMonths, monthLabel, monthPeriodLabel } from '@shared/dates.ts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMonth } from '../lib/month';
 
@@ -13,7 +13,10 @@ export function MonthPicker() {
       >
         <ChevronLeft size={18} />
       </button>
-      <span className="min-w-[8.5rem] text-center text-sm font-medium text-ink">{monthLabel(month)}</span>
+      <span className="min-w-[8.5rem] text-center">
+        <span className="block text-sm font-medium text-ink">{monthLabel(month)}</span>
+        <span className="block text-[11px] leading-tight text-muted">{monthPeriodLabel(month)}</span>
+      </span>
       <button
         className="rounded-full p-1.5 text-ink-2 active:bg-grid disabled:opacity-30"
         onClick={() => setMonth(addMonths(month, 1))}

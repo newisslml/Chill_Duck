@@ -4,7 +4,7 @@
 import { budgetStatus, type BudgetStatus } from './alerts.ts';
 import { normalizeMerchant } from './categorize.ts';
 import { categoryById, METHOD_IDS, METHODS, type Method, type Source } from './domain.ts';
-import { monthLabel } from './dates.ts';
+import { monthLabel, monthPeriodLabel } from './dates.ts';
 import { formatCLP } from './money.ts';
 
 /** Fila de la vista `month_charges`: lo que una compra carga a un mes (una cuota). */
@@ -265,7 +265,8 @@ export function renderReportEmail(report: MonthReport): { subject: string; html:
   const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f9f9f7;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px 20px;background:#fcfcfb;">
     <p style="margin:0;font-size:13px;color:${MUTED};">🦆 Chill Duck · Informe mensual</p>
-    <h1 style="margin:4px 0 20px;font-size:22px;color:${INK};">${label}</h1>
+    <h1 style="margin:4px 0 2px;font-size:22px;color:${INK};">${label}</h1>
+    <p style="margin:0 0 20px;font-size:13px;color:${MUTED};">Compras del ${monthPeriodLabel(report.month)}</p>
     ${summary}
     ${section('Por método de pago', methods)}
     ${section('Categorías con más gasto', categories)}

@@ -4,7 +4,8 @@
  * 1. Cada 5 minutos lee los avisos de Banco Falabella (transferencias que haces), Mercado Pago
  *    y los pagos que te compartes desde la app del banco con asunto "Pago CMR" (la imagen se
  *    lee con el OCR de Google Drive), y los envía a Supabase. Se activa con `activarLecturaCorreos()`.
- * 2. El día 1 de cada mes envía a tu correo el informe del mes anterior.
+ * 2. El día 25 de cada mes (el día después del cierre de facturación) envía a tu correo el informe del
+ *    mes que acaba de cerrar.
  * 3. Una vez al día hace un "ping" para que Supabase gratuito no pause el proyecto.
  *
  * Configuración: Configuración del proyecto (⚙) → Propiedades del script:
@@ -192,13 +193,28 @@ function pruneSeen_(props, stored) {
   });
 }
 
+// Último día de cada mes de facturación de CMR; lo comprado después cuenta en el mes siguiente.
+// Debe coincidir con BILLING_CLOSING_DAY en supabase/functions/_shared/dates.ts.
+var BILLING_CLOSING_DAY_ = 24;
+
+/** Mes de facturación ('yyyy-MM') de una fecha: del día 25 en adelante cuenta en el mes siguiente. */
 function monthOf_(date) {
-  return Utilities.formatDate(date, 'America/Santiago', 'yyyy-MM');
+  var year = Number(Utilities.formatDate(date, 'America/Santiago', 'yyyy'));
+  var month = Number(Utilities.formatDate(date, 'America/Santiago', 'M'));
+  var day = Number(Utilities.formatDate(date, 'America/Santiago', 'd'));
+  return shiftMonth_(year, month, day > BILLING_CLOSING_DAY_ ? 1 : 0);
 }
 
 function previousMonth_() {
   var now = new Date();
-  return monthOf_(new Date(now.getFullYear(), now.getMonth() - 1, 15));
+  var year = Number(Utilities.formatDate(now, 'America/Santiago', 'yyyy'));
+  var month = Number(Utilities.formatDate(now, 'America/Santiago', 'M'));
+  var day = Number(Utilities.formatDate(now, 'America/Santiago', 'd'));
+  return shiftMonth_(year, month, (day > BILLING_CLOSING_DAY_ ? 1 : 0) - 1);
+}
+
+function shiftMonth_(year, month, delta) {
+  return Utilities.formatDate(new Date(Date.UTC(year, month - 1 + delta, 15)), 'UTC', 'yyyy-MM');
 }
 
 function sendReport_(month, save) {
@@ -214,7 +230,7 @@ function sendReport_(month, save) {
   console.log('Informe de ' + month + ' enviado');
 }
 
-/** Disparador del día 1: informe del mes que terminó, guardado en la app. */
+/** Disparador del día siguiente al cierre (25): informe del mes de facturación que cerró, guardado en la app. */
 function sendMonthlyReport() {
   sendReport_(previousMonth_(), true);
 }
@@ -280,7 +296,8 @@ function setup() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (handlers.indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('sendMonthlyReport').timeBased().onMonthDay(1).atHour(8).create();
+  // El día después del cierre, cuando el mes de facturación ya está completo.
+  ScriptApp.newTrigger('sendMonthlyReport').timeBased().onMonthDay(BILLING_CLOSING_DAY_ + 1).atHour(8).create();
   ScriptApp.newTrigger('heartbeat').timeBased().everyDays(1).atHour(12).create();
   console.log('Disparadores creados: informe mensual y heartbeat.');
   diagnostico();

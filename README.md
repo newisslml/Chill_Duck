@@ -2,7 +2,7 @@
 
 App para iPhone (PWA) que registra sola tus gastos con **CMR Falabella** y **Mercado Pago**.
 Compara lo gastado contra tu sueldo y tus topes, te avisa con una notificación en cada pago y
-el día 1 te envía por correo el informe del mes anterior.
+el día 25 (al cerrar tu facturación de CMR) te envía por correo el informe del mes que terminó.
 
 ```
 API Mercado Pago ◄─(pg_cron cada 2 min)── Edge Function `sync-mercadopago` ─┐
@@ -11,7 +11,7 @@ Atajo iOS "Mercado Pago con tarjeta"    ─► Edge Function `ingest` ───�
 Apps Script: transferencias y "Pago CMR" ─► Edge Function `ingest` ─────────┤
                                                                             ├─► Postgres ─► Realtime ─► PWA
                                deduplica, categoriza y avisa por Web Push ◄─┘
-Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo desde tu Gmail
+Apps Script (día 25, 08:00) ─► Edge Function `monthly-report` ─► correo desde tu Gmail
 ```
 
 - **Mercado Pago con saldo, QR o Mercado Crédito:** automático, con la API y tu propio Access Token.
@@ -42,7 +42,11 @@ Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo 
 | `Dockerfile`, `docker-compose.yml`, `docker/` | La PWA en contenedor: producción (nginx), desarrollo, demo y pruebas |
 
 **Reglas de cálculo**
-- El mes es calendario y en hora de Chile. Una compra a las 23:30 del día 30 cuenta en ese mes.
+- El mes es el de **facturación de CMR**, en hora de Chile: cierra el día 24 y se nombra por el mes en que
+  cierra. Octubre va del 25 de septiembre al 24 de octubre, así que lo comprado del 25 en adelante ya cuenta
+  en el mes siguiente. Vale igual para CMR y Mercado Pago. Para cambiar el día de cierre, modifícalo en
+  `BILLING_CLOSING_DAY` (`supabase/functions/_shared/dates.ts`), en la función `month_of` de una migración
+  nueva y en `BILLING_CLOSING_DAY_` de `apps-script/Code.gs`.
 - Las compras en cuotas suman **solo la cuota del mes**. La cuota 1 cae en el mes de la compra.
 - El 100% del gráfico de Inicio son tus ingresos (sueldo + otros ingresos). La marca negra es el tope.
 

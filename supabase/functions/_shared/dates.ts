@@ -1,6 +1,14 @@
 // Fechas en hora de Chile. Los meses se identifican como 'YYYY-MM'.
+//
+// "Mes" es el mes de facturación de CMR, no el calendario: cierra el día 24 y se nombra por el mes en
+// que cierra. El mes '2026-10' va del 25 de septiembre al 24 de octubre (ambos incluidos), así que lo
+// comprado desde el 25 ya cuenta en el mes siguiente. Aplica igual a CMR y a Mercado Pago.
+// Misma regla que la función SQL `month_of` (supabase/migrations/20261001000000_billing_cycle.sql).
 
 export const TZ = 'America/Santiago';
+
+/** Último día de cada mes de facturación. Lo comprado después de este día cae en el mes siguiente. */
+export const BILLING_CLOSING_DAY = 24;
 
 interface WallTime {
   year: number;
@@ -45,10 +53,11 @@ export function zonedToUtc(year: number, month: number, day: number, hour = 0, m
   return new Date(ts);
 }
 
-/** Mes (en Chile) al que pertenece un instante: 'YYYY-MM'. */
+/** Mes de facturación (en Chile) al que pertenece un instante: 'YYYY-MM'. */
 export function monthKey(date: Date = new Date()): string {
   const w = wallTime(date);
-  return `${w.year}-${pad(w.month)}`;
+  const calendar = `${w.year}-${pad(w.month)}`;
+  return w.day > BILLING_CLOSING_DAY ? addMonths(calendar, 1) : calendar;
 }
 
 /** Día (en Chile) de un instante: 'YYYY-MM-DD'. */
@@ -79,17 +88,27 @@ export function addMonths(key: string, delta: number): string {
   return `${Math.floor(total / 12)}-${pad((total % 12) + 1)}`;
 }
 
-/** Días que quedan en el mes actual, contando hoy. */
+/** Días que quedan en el mes de facturación actual, contando hoy y el día de cierre. */
 export function daysLeftInMonth(now: Date = new Date()): number {
   const w = wallTime(now);
-  const daysInMonth = new Date(Date.UTC(w.year, w.month, 0)).getUTCDate();
-  return daysInMonth - w.day + 1;
+  // Date.UTC normaliza el mes 12 → enero del año siguiente.
+  const closing = Date.UTC(w.year, w.month - 1 + (w.day > BILLING_CLOSING_DAY ? 1 : 0), BILLING_CLOSING_DAY);
+  return Math.round((closing - Date.UTC(w.year, w.month - 1, w.day)) / 86_400_000) + 1;
 }
 
-/** Primer instante (UTC) del mes en hora de Chile. */
+/** Primer instante (UTC) del mes de facturación: el día 25 del mes anterior, a las 00:00 de Chile. */
 export function monthStartInstant(key: string): Date {
   const [y, m] = splitMonth(key);
-  return zonedToUtc(y, m, 1);
+  return zonedToUtc(y, m - 1, BILLING_CLOSING_DAY + 1);
+}
+
+const shortMonths = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** '2026-10' → '25 sep – 24 oct': los días que abarca el mes de facturación. */
+export function monthPeriodLabel(key: string): string {
+  const [y, m] = splitMonth(key);
+  const start = new Date(Date.UTC(y, m - 2, BILLING_CLOSING_DAY + 1));
+  return `${start.getUTCDate()} ${shortMonths[start.getUTCMonth()]} – ${BILLING_CLOSING_DAY} ${shortMonths[m - 1]}`;
 }
 
 const monthNames = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric', timeZone: 'UTC' });

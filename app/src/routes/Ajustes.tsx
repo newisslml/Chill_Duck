@@ -1,4 +1,4 @@
-import { formatDay, formatTime, monthKey } from '@shared/dates.ts';
+import { BILLING_CLOSING_DAY, formatDay, formatTime, monthKey } from '@shared/dates.ts';
 import { METHODS } from '@shared/domain.ts';
 import { formatCLP } from '@shared/money.ts';
 import {
@@ -390,7 +390,7 @@ export function Ajustes({ email }: { email: string }) {
 
           <Card className="space-y-3">
             <SectionTitle>Informe mensual por correo</SectionTitle>
-            <Field label="Enviar a" hint="Se envía el día 1 de cada mes desde tu Gmail (Apps Script).">
+            <Field label="Enviar a" hint={`Se envía el día ${BILLING_CLOSING_DAY + 1} de cada mes, cuando cierra tu facturación, desde tu Gmail (Apps Script).`}>
               <input
                 type="email"
                 className={inputClass}

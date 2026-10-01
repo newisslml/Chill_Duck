@@ -1,7 +1,7 @@
-// Datos de ejemplo del modo demo (`npm run demo`). Las fechas se arman en el mes actual
-// para que la app se vea "viva" cualquier día que la abras.
+// Datos de ejemplo del modo demo (`npm run demo`). Las fechas se arman en el mes de facturación actual
+// (del 25 al 24) para que la app se vea "viva" cualquier día que la abras.
 
-import { addMonths, monthKey, monthStart, zonedToUtc } from '@shared/dates.ts';
+import { addMonths, BILLING_CLOSING_DAY, monthKey, monthStart, zonedToUtc } from '@shared/dates.ts';
 import type { Method, Source } from '@shared/domain.ts';
 import type { ChargeRow } from '@shared/report.ts';
 
@@ -21,9 +21,11 @@ export interface DemoTransaction {
 export function demoTransactions(now = new Date()): DemoTransaction[] {
   const month = monthKey(now);
   const prev = addMonths(month, -1);
+  // `day` es el día dentro del mes de facturación: 1 = el día 25 del mes anterior. Date.UTC normaliza
+  // días de más (25 + 20 = 15 del mes siguiente).
   const at = (m: string, day: number, hour: number, minute: number) => {
     const [y, mo] = m.split('-').map(Number);
-    return zonedToUtc(y, mo, day, hour, minute).toISOString();
+    return zonedToUtc(y, mo - 1, BILLING_CLOSING_DAY + day, hour, minute).toISOString();
   };
   const tx = (
     merchant: string,
@@ -57,7 +59,7 @@ export function demoTransactions(now = new Date()): DemoTransaction[] {
     tx('CINEMARK', 'entretenimiento', 'mercadopago', 17_800, at(month, 6, 20, 0)),
     tx('JUMBO', 'supermercado', 'cmr', 128_450, at(month, 2, 14, 30)),
     tx('Cuota crédito', 'deudas', 'mercadopago', 150_000, at(month, 1, 8, 0), { source: 'manual', note: 'Crédito de consumo' }),
-    // Mes anterior: para comparar y para la cuota 2/3 de SHEIN que cae este mes.
+    // Mes de facturación anterior: para comparar y para la cuota 2/3 de SHEIN que cae este mes.
     tx('SHEIN', 'ropa', 'mercadopago', 45_980, at(prev, 18, 22, 5), { installments: 3 }),
     tx('JUMBO', 'supermercado', 'cmr', 142_300, at(prev, 3, 12, 0)),
     tx('Cuota crédito', 'deudas', 'mercadopago', 150_000, at(prev, 1, 8, 0), { source: 'manual' }),
