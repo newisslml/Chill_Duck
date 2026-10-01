@@ -39,6 +39,7 @@ Apps Script (día 1, 08:00) ─► Edge Function `monthly-report` ─► correo 
 | `apps-script/` | Script de Gmail: lee las transferencias de Banco Falabella y los "Pago CMR" que te compartes, y envía el informe mensual |
 | `shortcuts/` | Paso a paso de los Atajos de iOS (Apple Pay y respaldo manual) |
 | `tests/` | Prueba de la migración SQL en un Postgres embebido |
+| `Dockerfile`, `docker-compose.yml`, `docker/` | La PWA en contenedor: producción (nginx), desarrollo, demo y pruebas |
 
 **Reglas de cálculo**
 - El mes es calendario y en hora de Chile. Una compra a las 23:30 del día 30 cuenta en ese mes.
@@ -190,6 +191,22 @@ curl -X POST https://<ref>.supabase.co/functions/v1/ingest \
   -H "x-ingest-token: <token>" -H "Content-Type: application/json" \
   -d '{"source":"apple_pay","amount":"$12.990","merchant":"LIDER EXPRESS","card":"CMR Mastercard"}'
 ```
+
+### Con Docker
+
+No necesitas Node instalado. El backend sigue siendo tu proyecto de Supabase; Docker solo corre la PWA.
+
+```bash
+docker compose --env-file app/.env up --build -d   # app compilada con nginx: http://localhost:8080
+docker compose --profile dev up                    # desarrollo con recarga en vivo: http://localhost:5173
+docker compose --profile demo up                   # datos de ejemplo, sin Supabase: http://localhost:5174
+docker compose run --rm --build test               # las mismas pruebas de `npm test`
+```
+
+Las `VITE_*` se incrustan al compilar, por eso la imagen de producción necesita `--env-file app/.env`
+(o un `.env` en la raíz). Si cambias `package.json`, reconstruye con `--build`. En `localhost` la PWA y
+las notificaciones funcionan sin HTTPS; para usarla desde el iPhone sigue el paso 4 (Vercel) o pon la
+imagen detrás de un proxy con HTTPS.
 
 ## Limitaciones conocidas
 

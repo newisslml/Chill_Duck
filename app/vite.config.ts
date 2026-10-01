@@ -72,5 +72,7 @@ export default defineConfig(({ mode }) => ({
   ],
   server: {
     fs: { allow: ['..'] },
+    // Dentro de Docker (docker-compose.yml) el código llega por un montaje que no emite eventos de archivo.
+    watch: process.env.CHOKIDAR_USEPOLLING ? { usePolling: true } : undefined,
   },
 }));

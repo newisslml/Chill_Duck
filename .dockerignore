@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/dev-dist
+.git
+.vercel
+.clasp.json
+apps-script
+supabase/.temp
+supabase/.branches
+**/.env
+**/.env.local
+*.log
+Dockerfile
+docker-compose.yml

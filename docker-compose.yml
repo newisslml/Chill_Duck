@@ -1,0 +1,61 @@
+# Chill Duck en Docker. El backend (Postgres, Auth, Edge Functions) sigue siendo tu proyecto de Supabase;
+# aquí solo corre la PWA.
+#
+#   docker compose --env-file app/.env up --build -d       # producción local en http://localhost:8080
+#   docker compose --profile dev up                        # desarrollo con recarga, http://localhost:5173
+#   docker compose --profile demo up                       # datos de ejemplo sin Supabase, http://localhost:5174
+#   docker compose run --rm --build test                   # pruebas (vitest + Postgres embebido)
+#
+# `--env-file app/.env` solo hace falta para `app`: Vite incrusta las VITE_* al compilar. Alternativa:
+# copia app/.env a un `.env` en esta carpeta y omite la opción.
+
+name: chill-duck
+
+x-dev: &dev
+  build:
+    context: .
+    target: dev
+  env_file:
+    - path: app/.env
+      required: false
+  environment:
+    # Los montajes desde Windows/macOS no avisan cambios de archivo: sin esto no hay recarga en vivo.
+    CHOKIDAR_USEPOLLING: "1"
+  # Solo se monta el código fuente: node_modules queda el de la imagen (el de Windows no sirve en Linux).
+  volumes:
+    - ./app/src:/repo/app/src
+    - ./app/public:/repo/app/public
+    - ./app/index.html:/repo/app/index.html
+    - ./app/vite.config.ts:/repo/app/vite.config.ts
+    - ./supabase/functions/_shared:/repo/supabase/functions/_shared
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_VAPID_PUBLIC_KEY: ${VITE_VAPID_PUBLIC_KEY:-}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  dev:
+    <<: *dev
+    profiles: [dev]
+    ports:
+      - "5173:5173"
+
+  demo:
+    <<: *dev
+    profiles: [demo]
+    command: ["npm", "run", "demo", "-w", "app", "--", "--host", "0.0.0.0"]
+    ports:
+      - "5174:5173"
+
+  test:
+    profiles: [test]
+    build:
+      context: .
+      target: test
